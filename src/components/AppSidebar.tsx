@@ -59,6 +59,14 @@ export function AppSidebar() {
         </span>
       </div>
 
+      {/* Label MÓDULOS */}
+      <div
+        className="px-4 pb-[5px] pt-[14px] text-[10px] uppercase"
+        style={{ color: "#BBBBBB", letterSpacing: "0.08em" }}
+      >
+        MÓDULOS
+      </div>
+
       {/* Lista de módulos */}
       <nav className="flex-1 overflow-y-auto py-2">
         {modules.map((m) => {
