@@ -42,7 +42,7 @@ export function AppSidebar() {
     >
       {/* Logo */}
       <div className="flex flex-col items-start px-5 py-5">
-        <svg width="34" height="34" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true">
           <path
             d="M20 6c4 4 4 10 0 14 4 0 8 3 8 8 0 4-3 6-8 6s-8-2-8-6c0-5 4-8 8-8-4-4-4-10 0-14z"
             stroke="#111"
@@ -53,9 +53,9 @@ export function AppSidebar() {
         </svg>
         <span
           className="mt-2 text-[9px] uppercase"
-          style={{ letterSpacing: "0.18em", color: "var(--mute)" }}
+          style={{ letterSpacing: "0.12em", color: "var(--mute)" }}
         >
-          PLM Knowledge Hub
+          PLM KNOWLEDGE HUB
         </span>
       </div>
 
