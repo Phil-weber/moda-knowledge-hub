@@ -168,7 +168,7 @@ function ModulePage() {
   );
 }
 
-function FileCard({ file }: { file: FileItem }) {
+function FileCard({ file, onPreview }: { file: FileItem; onPreview: () => void }) {
   const style = TYPE_STYLES[file.type];
   const { Icon } = style;
   return (
