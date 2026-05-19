@@ -145,10 +145,20 @@ function ModulePage() {
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" }}
         >
           {MOCK_FILES.map((f) => (
-            <FileCard key={f.id} file={f} />
+            <FileCard key={f.id} file={f} onPreview={() => setPreview(f)} />
           ))}
         </div>
       </div>
+
+      <PdfPreviewModal
+        open={!!preview && preview.type === "PDF"}
+        onClose={() => setPreview(null)}
+        fileName={preview?.name ?? ""}
+        metadata={
+          preview ? `${preview.type} · ${preview.size} · ${preview.date}` : ""
+        }
+        fileUrl={SAMPLE_PDF_URL}
+      />
     </div>
   );
 }
