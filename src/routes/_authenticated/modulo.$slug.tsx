@@ -79,6 +79,7 @@ type Tab = (typeof TABS)[number];
 function ModulePage() {
   const { slug } = Route.useParams();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
+  const [preview, setPreview] = useState<FileItem | null>(null);
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
