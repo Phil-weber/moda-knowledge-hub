@@ -210,6 +210,7 @@ function FileCard({ file, onPreview }: { file: FileItem; onPreview: () => void }
             <button
               key={i}
               type="button"
+              onClick={Cmp === Eye && file.type === "PDF" ? onPreview : undefined}
               className="flex items-center justify-center transition-colors duration-150"
               style={{
                 height: 26,
