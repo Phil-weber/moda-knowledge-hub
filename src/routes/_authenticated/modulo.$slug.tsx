@@ -17,6 +17,10 @@ import {
   Check,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { PdfPreviewModal } from "@/components/PdfPreviewModal";
+
+// PDF público para preview dos arquivos PDF mockados.
+const SAMPLE_PDF_URL = "https://pdfobject.com/pdf/sample.pdf";
 
 export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
