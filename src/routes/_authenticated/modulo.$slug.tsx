@@ -17,6 +17,10 @@ import {
   Check,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { PdfPreviewModal } from "@/components/PdfPreviewModal";
+
+// PDF público para preview dos arquivos PDF mockados.
+const SAMPLE_PDF_URL = "https://pdfobject.com/pdf/sample.pdf";
 
 export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
@@ -75,6 +79,7 @@ type Tab = (typeof TABS)[number];
 function ModulePage() {
   const { slug } = Route.useParams();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
+  const [preview, setPreview] = useState<FileItem | null>(null);
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
@@ -145,15 +150,25 @@ function ModulePage() {
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" }}
         >
           {MOCK_FILES.map((f) => (
-            <FileCard key={f.id} file={f} />
+            <FileCard key={f.id} file={f} onPreview={() => setPreview(f)} />
           ))}
         </div>
       </div>
+
+      <PdfPreviewModal
+        open={!!preview && preview.type === "PDF"}
+        onClose={() => setPreview(null)}
+        fileName={preview?.name ?? ""}
+        metadata={
+          preview ? `${preview.type} · ${preview.size} · ${preview.date}` : ""
+        }
+        fileUrl={SAMPLE_PDF_URL}
+      />
     </div>
   );
 }
 
-function FileCard({ file }: { file: FileItem }) {
+function FileCard({ file, onPreview }: { file: FileItem; onPreview: () => void }) {
   const style = TYPE_STYLES[file.type];
   const { Icon } = style;
   return (
@@ -195,6 +210,7 @@ function FileCard({ file }: { file: FileItem }) {
             <button
               key={i}
               type="button"
+              onClick={Cmp === Eye && file.type === "PDF" ? onPreview : undefined}
               className="flex items-center justify-center transition-colors duration-150"
               style={{
                 height: 26,
