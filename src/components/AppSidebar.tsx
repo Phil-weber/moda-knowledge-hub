@@ -1,29 +1,85 @@
-// Sidebar fixa do PLM Knowledge Hub.
-// Carrega módulos do banco e destaca o item ativo conforme a rota.
-import { Link, useRouterState } from "@tanstack/react-router";
+// Sidebar do PLM Knowledge Hub com collapse, gerenciamento de módulos
+// e logo FARM. Módulos são carregados do banco e mantidos em estado local
+// para permitir adição/remoção via modal "Gerenciar módulos".
+import { useEffect, useState } from "react";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import * as Icons from "lucide-react";
-import { Plus } from "lucide-react";
+import {
+  Package,
+  Truck,
+  Calendar,
+  Scissors,
+  Palette,
+  Settings2,
+  ShieldCheck,
+  BarChart2,
+  Bot,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
+  Trash2,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-interface ModuleRow {
+interface ModuleItem {
   id: string;
-  name: string;
+  label: string;
   slug: string;
   icon: string;
-  order_index: number;
+  isAI?: boolean;
+  fixed?: boolean;
 }
 
-function ModuleIcon({ name, className }: { name: string; className?: string }) {
-  const Lib = Icons as unknown as Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>>;
-  const Cmp = Lib[name] ?? Icons.Square;
-  return <Cmp className={className} strokeWidth={1.5} />;
+const ICON_MAP: Record<string, LucideIcon> = {
+  box: Package,
+  truck: Truck,
+  calendar: Calendar,
+  scissors: Scissors,
+  color: Palette,
+  settings: Settings2,
+  shield: ShieldCheck,
+  chart: BarChart2,
+  bot: Bot,
+};
+
+// aliases p/ ícones legados vindos do banco
+const ICON_ALIAS: Record<string, string> = {
+  Package: "box",
+  Truck: "truck",
+  Calendar: "calendar",
+  Scissors: "scissors",
+  Palette: "color",
+  Settings2: "settings",
+  ShieldCheck: "shield",
+  BarChart2: "chart",
+  MessageCircle: "bot",
+  Bot: "bot",
+};
+
+const FIXED_SLUGS = new Set(["tech-pack", "faq-ia"]);
+
+function normalizeIcon(key: string): string {
+  if (ICON_MAP[key]) return key;
+  return ICON_ALIAS[key] ?? "box";
 }
+
+function getIcon(key: string): LucideIcon {
+  return ICON_MAP[normalizeIcon(key)] ?? Package;
+}
+
+const ICON_OPTIONS = Object.keys(ICON_MAP) as Array<keyof typeof ICON_MAP>;
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
+  const [modules, setModules] = useState<ModuleItem[]>([]);
+  const [showManageModules, setShowManageModules] = useState(false);
 
-  const { data: modules = [] } = useQuery<ModuleRow[]>({
+  const { data: dbModules } = useQuery({
     queryKey: ["modules"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -35,101 +91,572 @@ export function AppSidebar() {
     },
   });
 
+  useEffect(() => {
+    if (!dbModules) return;
+    setModules((prev) => {
+      if (prev.length > 0) return prev;
+      return dbModules.map((m) => ({
+        id: m.id,
+        slug: m.slug,
+        label: m.name,
+        icon: normalizeIcon(m.icon),
+        isAI: m.slug === "faq-ia",
+        fixed: FIXED_SLUGS.has(m.slug),
+      }));
+    });
+  }, [dbModules]);
+
+  const onSelect = (slug: string) => {
+    navigate({ to: "/modulo/$slug", params: { slug } });
+  };
+
+  const w = collapsed ? "60px" : "220px";
+
   return (
-    <aside
-      className="flex h-full w-[220px] flex-col bg-white"
-      style={{ borderRight: "0.5px solid var(--line)" }}
+    <div
+      style={{
+        width: w,
+        flexShrink: 0,
+        borderRight: "0.5px solid #e0e0e0",
+        background: "#ffffff",
+        display: "flex",
+        flexDirection: "column",
+        transition: "width 0.2s ease",
+        overflow: "hidden",
+        position: "relative",
+      }}
     >
-      {/* Logo */}
-      <div className="flex flex-col items-start px-5 py-5">
-        <svg width="38" height="38" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-          <path
-            d="M20 6c4 4 4 10 0 14 4 0 8 3 8 8 0 4-3 6-8 6s-8-2-8-6c0-5 4-8 8-8-4-4-4-10 0-14z"
-            stroke="#111"
-            strokeWidth="0.8"
-            strokeLinejoin="round"
-          />
-          <circle cx="20" cy="20" r="1.2" fill="#111" />
-        </svg>
-        <span
-          className="mt-2 text-[9px] uppercase"
-          style={{ letterSpacing: "0.12em", color: "var(--mute)" }}
-        >
-          PLM KNOWLEDGE HUB
-        </span>
-      </div>
-
-      {/* Label MÓDULOS */}
+      {/* LOGO */}
       <div
-        className="px-4 pb-[5px] pt-[14px] text-[10px] uppercase"
-        style={{ color: "#BBBBBB", letterSpacing: "0.08em" }}
+        style={{
+          padding: collapsed ? "16px 0 12px" : "20px 16px 14px",
+          borderBottom: "0.5px solid #e8e8e8",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "6px",
+          flexShrink: 0,
+        }}
       >
-        MÓDULOS
-      </div>
-
-      {/* Lista de módulos */}
-      <nav className="flex-1 overflow-y-auto py-2">
-        {modules.map((m) => {
-          const active = pathname === `/modulo/${m.slug}`;
-          const isFaq = m.slug === "faq-ia";
-          return (
-            <Link
-              key={m.id}
-              to="/modulo/$slug"
-              params={{ slug: m.slug }}
-              className="flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150"
-              style={{
-                background: active ? "var(--ink)" : "transparent",
-                color: active ? "#FFFFFF" : "var(--ink)",
-                fontWeight: isFaq ? 500 : 400,
-              }}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.background = "var(--surface-2)";
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.background = "transparent";
-              }}
-            >
-              <ModuleIcon name={m.icon} className="h-4 w-4" />
-              <span className="flex-1">{m.name}</span>
-              {isFaq && (
-                <span
-                  className="rounded px-1.5 py-0.5 text-[9px]"
-                  style={{
-                    background: active ? "#FFFFFF" : "var(--ink)",
-                    color: active ? "var(--ink)" : "#FFFFFF",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  IA
-                </span>
-              )}
-            </Link>
-          );
-        })}
-
-        <div className="px-3 pt-3">
-          <button
-            type="button"
-            className="flex w-full items-center justify-center gap-1 rounded-md py-2 text-[12px] transition-colors duration-150"
+        <FarmLogo />
+        {!collapsed && (
+          <span
             style={{
-              border: "0.5px dashed #CCCCCC",
-              color: "#BBBBBB",
-              background: "transparent",
+              fontSize: "9px",
+              fontWeight: 500,
+              letterSpacing: "0.14em",
+              color: "#aaaaaa",
+              textTransform: "uppercase",
+              textAlign: "center",
+              lineHeight: 1.4,
             }}
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+            PLM Knowledge Hub
+          </span>
+        )}
+      </div>
+
+      {/* BOTÃO COLLAPSE */}
+      <button
+        onClick={() => setCollapsed((v) => !v)}
+        title={collapsed ? "Expandir menu" : "Recolher menu"}
+        style={{
+          position: "absolute",
+          top: "72px",
+          right: collapsed ? "50%" : "-1px",
+          transform: "translateX(50%)",
+          width: "22px",
+          height: "22px",
+          borderRadius: "50%",
+          border: "0.5px solid #e0e0e0",
+          background: "#ffffff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          zIndex: 10,
+          transition: "all 0.2s ease",
+          color: "#888",
+        }}
+      >
+        {collapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
+      </button>
+
+      {/* NAV */}
+      <nav
+        style={{
+          flex: 1,
+          padding: collapsed ? "12px 6px" : "12px 8px",
+          overflowY: "auto",
+          overflowX: "hidden",
+        }}
+      >
+        {!collapsed && (
+          <p
+            style={{
+              fontSize: "10px",
+              fontWeight: 500,
+              letterSpacing: "0.1em",
+              color: "#bbbbbb",
+              textTransform: "uppercase",
+              padding: "0 10px",
+              marginBottom: "6px",
+              marginTop: "4px",
+            }}
+          >
+            Módulos
+          </p>
+        )}
+
+        {modules.map((m) => {
+          const MI = getIcon(m.icon);
+          const isActive = pathname === `/modulo/${m.slug}`;
+          return (
+            <button
+              key={m.id}
+              onClick={() => onSelect(m.slug)}
+              title={collapsed ? m.label : ""}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: collapsed ? "0" : "10px",
+                justifyContent: collapsed ? "center" : "flex-start",
+                padding: collapsed ? "10px 0" : "8px 16px",
+                border: "none",
+                borderRadius: collapsed ? "8px" : "0",
+                background: isActive ? "#111111" : "transparent",
+                color: isActive ? "#ffffff" : "#555555",
+                fontSize: "13px",
+                fontWeight: isActive ? 500 : 400,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                textAlign: "left",
+                marginBottom: "1px",
+                transition: "background 0.12s ease",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.background = "#f5f5f5";
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <MI size={15} strokeWidth={1.5} />
+              {!collapsed && (
+                <>
+                  <span style={{ flex: 1 }}>{m.label}</span>
+                  {m.isAI && (
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        fontWeight: 500,
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        background: isActive ? "rgba(255,255,255,0.2)" : "#111111",
+                        color: "#ffffff",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      IA
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* BOTÃO GERENCIAR MÓDULOS */}
+      {!collapsed && (
+        <div style={{ padding: "0 14px 10px" }}>
+          <button
+            onClick={() => setShowManageModules(true)}
+            style={{
+              width: "100%",
+              padding: "7px 12px",
+              border: "0.5px dashed #cccccc",
+              borderRadius: "8px",
+              background: "transparent",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "12px",
+              color: "#bbbbbb",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <Plus size={13} strokeWidth={1.5} />
             Adicionar módulo
           </button>
         </div>
-      </nav>
+      )}
 
-      <div
-        className="px-5 py-3 text-[11px]"
-        style={{ color: "#CCCCCC", borderTop: "0.5px solid var(--line)" }}
-      >
-        Suporte: philipp.weber / bruna.valadares
+      {/* FOOTER */}
+      {!collapsed && (
+        <div
+          style={{
+            padding: "10px 16px 14px",
+            borderTop: "0.5px solid #eeeeee",
+          }}
+        >
+          <p style={{ fontSize: "11px", color: "#cccccc", lineHeight: 1.75 }}>
+            Suporte:
+            <br />
+            <strong style={{ color: "#aaaaaa", fontWeight: 500 }}>philipp.weber</strong>
+            <br />
+            <strong style={{ color: "#aaaaaa", fontWeight: 500 }}>bruna.valadares</strong>
+          </p>
+        </div>
+      )}
+
+      {/* MODAL GERENCIAR MÓDULOS */}
+      {showManageModules && (
+        <div
+          onClick={() => setShowManageModules(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#ffffff",
+              borderRadius: "12px",
+              border: "0.5px solid #e0e0e0",
+              width: "440px",
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "16px 20px",
+                borderBottom: "0.5px solid #e8e8e8",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontSize: "14px", fontWeight: 500, color: "#111" }}>
+                Gerenciar módulos
+              </span>
+              <button
+                onClick={() => setShowManageModules(false)}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  border: "0.5px solid #e0e0e0",
+                  borderRadius: "6px",
+                  background: "#f9f9f9",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={13} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "12px 16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              <p style={{ fontSize: "11px", color: "#bbbbbb", marginBottom: "4px" }}>
+                Módulos fixos não podem ser removidos.
+              </p>
+              {modules.map((m) => {
+                const MI = getIcon(m.icon);
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "10px 12px",
+                      border: "0.5px solid #e8e8e8",
+                      borderRadius: "8px",
+                      background: "#fafafa",
+                    }}
+                  >
+                    <GripVertical size={14} style={{ color: "#cccccc", flexShrink: 0 }} />
+                    <div
+                      style={{
+                        width: "30px",
+                        height: "30px",
+                        borderRadius: "6px",
+                        background: "#f0f0f0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <MI size={14} strokeWidth={1.5} style={{ color: "#666" }} />
+                    </div>
+                    <span
+                      style={{
+                        flex: 1,
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: "#111",
+                      }}
+                    >
+                      {m.label}
+                    </span>
+                    {m.isAI && (
+                      <span
+                        style={{
+                          fontSize: "9px",
+                          fontWeight: 500,
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: "#111",
+                          color: "#fff",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        IA
+                      </span>
+                    )}
+                    {m.fixed ? (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          color: "#cccccc",
+                          padding: "2px 8px",
+                          border: "0.5px solid #e0e0e0",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        Fixo
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setModules((prev) => prev.filter((x) => x.id !== m.id));
+                        }}
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          border: "0.5px solid #e8e8e8",
+                          borderRadius: "5px",
+                          background: "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          color: "#cccccc",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = "#fca5a5";
+                          e.currentTarget.style.color = "#ef4444";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "#e8e8e8";
+                          e.currentTarget.style.color = "#cccccc";
+                        }}
+                      >
+                        <Trash2 size={12} strokeWidth={1.5} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div
+              style={{
+                padding: "14px 16px",
+                borderTop: "0.5px solid #e8e8e8",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 500,
+                  color: "#aaaaaa",
+                  marginBottom: "8px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                Adicionar novo módulo
+              </p>
+              <AddModuleForm
+                onAdd={(newMod) => setModules((prev) => [...prev, newMod])}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
+  const [label, setLabel] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState<string>("box");
+
+  const submit = () => {
+    if (!label.trim()) return;
+    const slug = label.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now();
+    onAdd({
+      id: slug,
+      slug,
+      label: label.trim(),
+      icon: selectedIcon,
+      fixed: false,
+    });
+    setLabel("");
+    setSelectedIcon("box");
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        placeholder="Nome do módulo..."
+        style={{
+          padding: "8px 12px",
+          border: "0.5px solid #e0e0e0",
+          borderRadius: "7px",
+          fontSize: "13px",
+          outline: "none",
+          fontFamily: "inherit",
+          background: "#fff",
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+        }}
+      />
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+        {ICON_OPTIONS.map((key) => {
+          const Icon = ICON_MAP[key];
+          const selected = selectedIcon === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setSelectedIcon(key)}
+              style={{
+                width: "32px",
+                height: "32px",
+                border: selected ? "1.5px solid #111" : "0.5px solid #e0e0e0",
+                borderRadius: "7px",
+                background: selected ? "#111" : "#fafafa",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: selected ? "#fff" : "#666",
+              }}
+            >
+              <Icon size={14} strokeWidth={1.5} />
+            </button>
+          );
+        })}
       </div>
-    </aside>
+      <button
+        onClick={submit}
+        disabled={!label.trim()}
+        style={{
+          padding: "8px",
+          border: "none",
+          borderRadius: "7px",
+          background: label.trim() ? "#111111" : "#e8e8e8",
+          color: label.trim() ? "#ffffff" : "#bbbbbb",
+          fontSize: "13px",
+          fontWeight: 500,
+          cursor: label.trim() ? "pointer" : "not-allowed",
+          fontFamily: "inherit",
+        }}
+      >
+        Adicionar
+      </button>
+    </div>
+  );
+}
+
+function FarmLogo() {
+  return (
+    <svg
+      width="42"
+      height="42"
+      viewBox="0 0 120 105"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <ellipse cx="60" cy="28" rx="22" ry="28" stroke="#1a1a1a" strokeWidth="3.5" fill="none" />
+      <ellipse
+        cx="88"
+        cy="42"
+        rx="22"
+        ry="28"
+        stroke="#1a1a1a"
+        strokeWidth="3.5"
+        fill="none"
+        transform="rotate(72 88 42)"
+      />
+      <ellipse
+        cx="76"
+        cy="74"
+        rx="22"
+        ry="28"
+        stroke="#1a1a1a"
+        strokeWidth="3.5"
+        fill="none"
+        transform="rotate(144 76 74)"
+      />
+      <ellipse
+        cx="44"
+        cy="74"
+        rx="22"
+        ry="28"
+        stroke="#1a1a1a"
+        strokeWidth="3.5"
+        fill="none"
+        transform="rotate(216 44 74)"
+      />
+      <ellipse
+        cx="32"
+        cy="42"
+        rx="22"
+        ry="28"
+        stroke="#1a1a1a"
+        strokeWidth="3.5"
+        fill="none"
+        transform="rotate(288 32 42)"
+      />
+      <circle cx="60" cy="54" r="15" stroke="#1a1a1a" strokeWidth="3.5" fill="none" />
+      <path
+        d="M10 92 Q35 84 60 90 Q85 96 110 88"
+        stroke="#1a1a1a"
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
   );
 }
