@@ -81,6 +81,7 @@ function ModulePage() {
   const { slug } = Route.useParams();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
   const [preview, setPreview] = useState<FileItem | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
