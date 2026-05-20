@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PdfPreviewModal } from "@/components/PdfPreviewModal";
+import { OnboardingEditorPanel } from "@/components/OnboardingEditorPanel";
 
 // PDF público para preview dos arquivos PDF mockados.
 const SAMPLE_PDF_URL = "https://pdfobject.com/pdf/sample.pdf";
