@@ -280,16 +280,18 @@ function OnboardingTrack({
           </span>
           <button
             type="button"
+            onClick={onToggleEditor}
             className="px-2.5 text-[11px] transition-colors duration-150"
             style={{
               height: 26,
-              border: "0.5px solid #E0E0E0",
+              border: editorOpen ? "0.5px solid #111" : "0.5px solid #E0E0E0",
               borderRadius: 6,
-              color: "#555",
-              background: "#FFF",
+              color: editorOpen ? "#FFF" : "#555",
+              background: editorOpen ? "#111" : "#FFF",
+              fontWeight: editorOpen ? 500 : 400,
             }}
           >
-            Editar trilha
+            {editorOpen ? "Editando" : "Editar trilha"}
           </button>
         </div>
       </div>
