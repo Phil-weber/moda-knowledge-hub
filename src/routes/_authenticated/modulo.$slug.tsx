@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PdfPreviewModal } from "@/components/PdfPreviewModal";
+import { OnboardingEditorPanel } from "@/components/OnboardingEditorPanel";
 
 // PDF público para preview dos arquivos PDF mockados.
 const SAMPLE_PDF_URL = "https://pdfobject.com/pdf/sample.pdf";
@@ -80,6 +81,7 @@ function ModulePage() {
   const { slug } = Route.useParams();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
   const [preview, setPreview] = useState<FileItem | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
@@ -97,73 +99,80 @@ function ModulePage() {
   const fileCount = MOCK_FILES.length;
 
   return (
-    <div className="flex h-full min-h-full flex-col" style={{ background: "#FAFAFA" }}>
-      {/* Header */}
-      <div className="bg-white" style={{ borderBottom: "0.5px solid #E8E8E8", padding: "20px 22px 0" }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-[20px]" style={{ fontWeight: 500, color: "#111" }}>
-              {mod?.name ?? slug}
-            </h1>
-            <div className="mt-1 text-[12px]" style={{ color: "#AAA" }}>
-              {fileCount} arquivos
+    <div className="flex h-full min-h-full">
+      <div className="flex h-full min-h-full flex-1 flex-col" style={{ background: "#FAFAFA" }}>
+        {/* Header */}
+        <div className="bg-white" style={{ borderBottom: "0.5px solid #E8E8E8", padding: "20px 22px 0" }}>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-[20px]" style={{ fontWeight: 500, color: "#111" }}>
+                {mod?.name ?? slug}
+              </h1>
+              <div className="mt-1 text-[12px]" style={{ color: "#AAA" }}>
+                {fileCount} arquivos
+              </div>
             </div>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-3 text-[13px] text-white transition-colors duration-150"
+              style={{ background: "#111", height: 30, borderRadius: 7 }}
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Adicionar
+            </button>
           </div>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 px-3 text-[13px] text-white transition-colors duration-150"
-            style={{ background: "#111", height: 30, borderRadius: 7 }}
+
+          <div className="mt-4 flex gap-6">
+            {TABS.map((tab) => {
+              const active = tab === activeTab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className="pb-2.5 text-[13px] transition-colors duration-150"
+                  style={{
+                    color: active ? "#111" : "#AAA",
+                    fontWeight: active ? 500 : 400,
+                    borderBottom: active ? "2px solid #111" : "2px solid transparent",
+                    marginBottom: "-0.5px",
+                  }}
+                >
+                  {tab}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Conteúdo */}
+        <div className="flex-1 px-6 py-6">
+          <OnboardingTrack
+            editorOpen={editorOpen}
+            onToggleEditor={() => setEditorOpen((v) => !v)}
+          />
+          <div
+            className="mt-4 grid gap-3"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" }}
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Adicionar
-          </button>
+            {MOCK_FILES.map((f) => (
+              <FileCard key={f.id} file={f} onPreview={() => setPreview(f)} />
+            ))}
+          </div>
         </div>
 
-        <div className="mt-4 flex gap-6">
-          {TABS.map((tab) => {
-            const active = tab === activeTab;
-            return (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                className="pb-2.5 text-[13px] transition-colors duration-150"
-                style={{
-                  color: active ? "#111" : "#AAA",
-                  fontWeight: active ? 500 : 400,
-                  borderBottom: active ? "2px solid #111" : "2px solid transparent",
-                  marginBottom: "-0.5px",
-                }}
-              >
-                {tab}
-              </button>
-            );
-          })}
-        </div>
+        <PdfPreviewModal
+          open={!!preview && preview.type === "PDF"}
+          onClose={() => setPreview(null)}
+          fileName={preview?.name ?? ""}
+          metadata={
+            preview ? `${preview.type} · ${preview.size} · ${preview.date}` : ""
+          }
+          fileUrl={SAMPLE_PDF_URL}
+        />
       </div>
 
-      {/* Conteúdo */}
-      <div className="flex-1 px-6 py-6">
-        <OnboardingTrack />
-        <div
-          className="mt-4 grid gap-3"
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" }}
-        >
-          {MOCK_FILES.map((f) => (
-            <FileCard key={f.id} file={f} onPreview={() => setPreview(f)} />
-          ))}
-        </div>
-      </div>
-
-      <PdfPreviewModal
-        open={!!preview && preview.type === "PDF"}
-        onClose={() => setPreview(null)}
-        fileName={preview?.name ?? ""}
-        metadata={
-          preview ? `${preview.type} · ${preview.size} · ${preview.date}` : ""
-        }
-        fileUrl={SAMPLE_PDF_URL}
-      />
+      <OnboardingEditorPanel open={editorOpen} onClose={() => setEditorOpen(false)} />
     </div>
   );
 }
@@ -238,7 +247,13 @@ function FileCard({ file, onPreview }: { file: FileItem; onPreview: () => void }
   );
 }
 
-function OnboardingTrack() {
+function OnboardingTrack({
+  editorOpen,
+  onToggleEditor,
+}: {
+  editorOpen: boolean;
+  onToggleEditor: () => void;
+}) {
   const total = ONBOARDING_STEPS.length;
   const done = ONBOARDING_STEPS.filter((s) => s.status === "done").length;
   const pct = (done / total) * 100;
@@ -265,16 +280,18 @@ function OnboardingTrack() {
           </span>
           <button
             type="button"
+            onClick={onToggleEditor}
             className="px-2.5 text-[11px] transition-colors duration-150"
             style={{
               height: 26,
-              border: "0.5px solid #E0E0E0",
+              border: editorOpen ? "0.5px solid #111" : "0.5px solid #E0E0E0",
               borderRadius: 6,
-              color: "#555",
-              background: "#FFF",
+              color: editorOpen ? "#FFF" : "#555",
+              background: editorOpen ? "#111" : "#FFF",
+              fontWeight: editorOpen ? 500 : 400,
             }}
           >
-            Editar trilha
+            {editorOpen ? "Editando" : "Editar trilha"}
           </button>
         </div>
       </div>
