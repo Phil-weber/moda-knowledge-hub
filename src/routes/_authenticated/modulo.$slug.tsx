@@ -247,7 +247,13 @@ function FileCard({ file, onPreview }: { file: FileItem; onPreview: () => void }
   );
 }
 
-function OnboardingTrack() {
+function OnboardingTrack({
+  editorOpen,
+  onToggleEditor,
+}: {
+  editorOpen: boolean;
+  onToggleEditor: () => void;
+}) {
   const total = ONBOARDING_STEPS.length;
   const done = ONBOARDING_STEPS.filter((s) => s.status === "done").length;
   const pct = (done / total) * 100;
