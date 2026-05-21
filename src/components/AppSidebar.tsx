@@ -138,7 +138,17 @@ export function AppSidebar() {
           flexShrink: 0,
         }}
       >
-        <FarmLogo />
+        <img
+          src="/logo.png"
+          alt="Logo"
+          style={{
+            width: collapsed ? "32px" : "44px",
+            height: collapsed ? "32px" : "44px",
+            objectFit: "contain",
+            filter: "invert(1)",
+            transition: "width 0.2s ease",
+          }}
+        />
         {!collapsed && (
           <span
             style={{
@@ -162,9 +172,8 @@ export function AppSidebar() {
         title={collapsed ? "Expandir menu" : "Recolher menu"}
         style={{
           position: "absolute",
-          top: "72px",
-          right: collapsed ? "50%" : "-1px",
-          transform: "translateX(50%)",
+          top: "50px",
+          right: "-11px",
           width: "22px",
           height: "22px",
           borderRadius: "50%",
@@ -174,9 +183,8 @@ export function AppSidebar() {
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          zIndex: 10,
-          transition: "all 0.2s ease",
-          color: "#888",
+          zIndex: 50,
+          color: "#888888",
         }}
       >
         {collapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
