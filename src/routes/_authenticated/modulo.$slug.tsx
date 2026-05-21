@@ -1,5 +1,5 @@
-// Tela de módulo: header + tabs + trilha de onboarding + grid de arquivos (mockados).
-import { useState } from "react";
+// Tela de módulo: header + tabs + trilha de onboarding + lista real de arquivos.
+import { useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,23 +19,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { PdfPreviewModal } from "@/components/PdfPreviewModal";
 import { OnboardingEditorPanel } from "@/components/OnboardingEditorPanel";
-
-// PDF público para preview dos arquivos PDF mockados.
-const SAMPLE_PDF_URL = "https://pdfobject.com/pdf/sample.pdf";
+import { useDocs, type Doc, type DocType } from "@/lib/docs-context";
 
 export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
 });
 
-type FileType = "PDF" | "Vídeo" | "PPT" | "DOC";
-
-interface FileItem {
-  id: string;
-  name: string;
-  type: FileType;
-  size: string;
-  date: string;
-}
+type LegacyType = "PDF" | "Vídeo" | "PPT" | "DOC";
 
 interface TypeStyle {
   bg: string;
@@ -44,24 +34,17 @@ interface TypeStyle {
   label: string;
 }
 
-const TYPE_STYLES: Record<FileType, TypeStyle> = {
+const LEGACY_TYPE_STYLES: Record<LegacyType, TypeStyle> = {
   PDF: { bg: "#FFF5F5", color: "#E57373", Icon: FileText, label: "PDF" },
   "Vídeo": { bg: "#F0F4FF", color: "#6B9CF7", Icon: Play, label: "VÍDEO" },
   PPT: { bg: "#FFF8F0", color: "#F4A460", Icon: Presentation, label: "PPT" },
   DOC: { bg: "#F0F6FF", color: "#5BA0D0", Icon: FileIcon, label: "DOC" },
 };
 
-const MOCK_FILES: FileItem[] = [
-  { id: "1", name: "Guia_TechPack_v3", type: "PDF", size: "2.1 MB", date: "12/05/2026" },
-  { id: "2", name: "PLM_TechPack_Pricing", type: "Vídeo", size: "26.9 MB", date: "18/05/2026" },
-  { id: "3", name: "Processos_Internos_2026", type: "PPT", size: "8.4 MB", date: "10/05/2026" },
-  { id: "4", name: "Manual_Preenchimento", type: "DOC", size: "1.8 MB", date: "08/05/2026" },
-];
-
 interface OnboardingStep {
   id: number;
   title: string;
-  type: FileType;
+  type: LegacyType;
   meta: string;
   status: "done" | "active" | "pending";
 }
@@ -77,11 +60,22 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
 const TABS = ["Todos", "PDF", "Vídeo", "Apresentação", "Documento"] as const;
 type Tab = (typeof TABS)[number];
 
+const TAB_TYPE: Record<Exclude<Tab, "Todos">, DocType> = {
+  PDF: "pdf",
+  "Vídeo": "video",
+  Apresentação: "ppt",
+  Documento: "doc",
+};
+
 function ModulePage() {
   const { slug } = Route.useParams();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
-  const [preview, setPreview] = useState<FileItem | null>(null);
+  const [preview, setPreview] = useState<Doc | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+
+  const { docs, addDoc, removeDoc } = useDocs();
+  const all = docs[slug] ?? [];
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
@@ -96,7 +90,8 @@ function ModulePage() {
     },
   });
 
-  const fileCount = MOCK_FILES.length;
+  const filtered =
+    activeTab === "Todos" ? all : all.filter((d) => d.type === TAB_TYPE[activeTab]);
 
   return (
     <div className="flex h-full min-h-full">
@@ -109,11 +104,12 @@ function ModulePage() {
                 {mod?.name ?? slug}
               </h1>
               <div className="mt-1 text-[12px]" style={{ color: "#AAA" }}>
-                {fileCount} arquivos
+                {all.length} arquivos
               </div>
             </div>
             <button
               type="button"
+              onClick={() => setShowUpload((v) => !v)}
               className="flex items-center gap-1.5 px-3 text-[13px] text-white transition-colors duration-150"
               style={{ background: "#111", height: 30, borderRadius: 7 }}
             >
@@ -122,27 +118,30 @@ function ModulePage() {
             </button>
           </div>
 
-          <div className="mt-4 flex gap-6">
-            {TABS.map((tab) => {
-              const active = tab === activeTab;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className="pb-2.5 text-[13px] transition-colors duration-150"
-                  style={{
-                    color: active ? "#111" : "#AAA",
-                    fontWeight: active ? 500 : 400,
-                    borderBottom: active ? "2px solid #111" : "2px solid transparent",
-                    marginBottom: "-0.5px",
-                  }}
-                >
-                  {tab}
-                </button>
-              );
-            })}
-          </div>
+          {all.length > 0 && (
+            <div className="mt-4 flex gap-6">
+              {TABS.map((tab) => {
+                const active = tab === activeTab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className="pb-2.5 text-[13px] transition-colors duration-150"
+                    style={{
+                      color: active ? "#111" : "#AAA",
+                      fontWeight: active ? 500 : 400,
+                      borderBottom: active ? "2px solid #111" : "2px solid transparent",
+                      marginBottom: "-0.5px",
+                    }}
+                  >
+                    {tab}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {all.length === 0 && <div style={{ height: 16 }} />}
         </div>
 
         {/* Conteúdo */}
@@ -151,24 +150,52 @@ function ModulePage() {
             editorOpen={editorOpen}
             onToggleEditor={() => setEditorOpen((v) => !v)}
           />
-          <div
-            className="mt-4 grid gap-3"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))" }}
-          >
-            {MOCK_FILES.map((f) => (
-              <FileCard key={f.id} file={f} onPreview={() => setPreview(f)} />
-            ))}
-          </div>
+
+          {showUpload && (
+            <div className="mt-4">
+              <UploadZone
+                onUpload={(doc) => {
+                  addDoc(slug, doc);
+                  setShowUpload(false);
+                }}
+              />
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <div
+              className="mt-4 flex flex-col items-center justify-center"
+              style={{ padding: "60px 20px" }}
+            >
+              <Upload size={36} strokeWidth={1.25} style={{ color: "#CCCCCC" }} />
+              <p className="mt-3 text-[13px]" style={{ color: "#BBBBBB" }}>
+                Nenhum arquivo ainda. Clique em Adicionar para começar.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-col gap-2">
+              {filtered.map((d) => (
+                <DocCard
+                  key={d.id}
+                  doc={d}
+                  onDelete={(id) => removeDoc(slug, id)}
+                  onPreview={() => setPreview(d)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <PdfPreviewModal
-          open={!!preview && preview.type === "PDF"}
+          open={!!preview && preview.type === "pdf"}
           onClose={() => setPreview(null)}
-          fileName={preview?.name ?? ""}
+          fileName={preview?.title ?? ""}
           metadata={
-            preview ? `${preview.type} · ${preview.size} · ${preview.date}` : ""
+            preview
+              ? `${preview.type.toUpperCase()} · ${formatSize(preview.file_size)} · ${formatDate(preview.created_at)}`
+              : ""
           }
-          fileUrl={SAMPLE_PDF_URL}
+          fileUrl={preview?.file_url ?? ""}
         />
       </div>
 
@@ -177,75 +204,344 @@ function ModulePage() {
   );
 }
 
-function FileCard({ file, onPreview }: { file: FileItem; onPreview: () => void }) {
-  const style = TYPE_STYLES[file.type];
-  const { Icon } = style;
+// ---------- helpers ----------
+
+function formatSize(b: number): string {
+  if (!b) return "";
+  if (b < 1024) return `${b}B`;
+  if (b < 1048576) return `${(b / 1024).toFixed(0)}KB`;
+  return `${(b / 1048576).toFixed(1)}MB`;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR");
+}
+
+// ---------- UploadZone ----------
+
+const DOC_TYPES: Array<{ value: DocType; label: string; accept: string }> = [
+  { value: "pdf", label: "PDF", accept: ".pdf" },
+  { value: "video", label: "Vídeo", accept: ".mp4,.mov,.avi,.webm" },
+  { value: "ppt", label: "PowerPoint", accept: ".ppt,.pptx" },
+  { value: "doc", label: "Documento", accept: ".doc,.docx" },
+];
+
+function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
+  const [drag, setDrag] = useState(false);
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState<DocType>("pdf");
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef<HTMLInputElement>(null);
+
+  const pick = (f: File | undefined | null) => {
+    if (!f) return;
+    setFile(f);
+    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ""));
+    const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+    if (["mp4", "mov", "avi", "webm"].includes(ext)) setType("video");
+    else if (["ppt", "pptx"].includes(ext)) setType("ppt");
+    else if (["doc", "docx"].includes(ext)) setType("doc");
+    else setType("pdf");
+  };
+
+  const submit = async () => {
+    if (!file || !title.trim()) return;
+    setLoading(true);
+    const url = URL.createObjectURL(file);
+    onUpload({
+      id: Date.now().toString(),
+      title: title.trim(),
+      type,
+      file_url: url,
+      file_name: file.name,
+      file_size: file.size,
+      created_at: new Date().toISOString(),
+    });
+    setTitle("");
+    setFile(null);
+    setType("pdf");
+    setLoading(false);
+  };
+
+  const sel = DOC_TYPES.find((t) => t.value === type);
+  const ok = !!file && title.trim().length > 0;
+
   return (
     <div
-      className="overflow-hidden bg-white transition-colors duration-150"
-      style={{ border: "0.5px solid #E8E8E8", borderRadius: 10 }}
-      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#999999")}
-      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#E8E8E8")}
+      style={{
+        background: "#fafafa",
+        border: "0.5px solid #e8e8e8",
+        borderRadius: "12px",
+        padding: "18px",
+        marginBottom: "16px",
+      }}
     >
-      {/* Thumb */}
-      <div
-        className="relative flex items-center justify-center"
-        style={{ height: 110, background: style.bg }}
+      <p
+        style={{
+          fontSize: "10px",
+          fontWeight: 500,
+          letterSpacing: "0.08em",
+          color: "#cccccc",
+          textTransform: "uppercase",
+          marginBottom: "10px",
+        }}
       >
-        <Icon size={36} strokeWidth={1.25} style={{ color: style.color }} />
-        <span
-          className="absolute right-2 top-2 px-1.5 py-0.5 text-[9px] uppercase text-white"
-          style={{ background: style.color, borderRadius: 4, letterSpacing: "0.06em" }}
+        Adicionar arquivo
+      </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 140px",
+          gap: "8px",
+          marginBottom: "10px",
+        }}
+      >
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Título do arquivo..."
+          style={{
+            padding: "8px 12px",
+            border: "0.5px solid #e0e0e0",
+            borderRadius: "7px",
+            fontSize: "13px",
+            outline: "none",
+            fontFamily: "inherit",
+            background: "#fff",
+          }}
+        />
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as DocType)}
+          style={{
+            padding: "8px 12px",
+            border: "0.5px solid #e0e0e0",
+            borderRadius: "7px",
+            fontSize: "13px",
+            outline: "none",
+            fontFamily: "inherit",
+            background: "#fff",
+            cursor: "pointer",
+          }}
         >
-          {style.label}
+          {DOC_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDrag(true);
+        }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDrag(false);
+          pick(e.dataTransfer.files[0]);
+        }}
+        onClick={() => ref.current?.click()}
+        style={{
+          border: `1.5px dashed ${drag ? "#111111" : "#d8d8d8"}`,
+          borderRadius: "10px",
+          padding: "24px",
+          textAlign: "center",
+          cursor: "pointer",
+          background: drag ? "#f5f5f5" : "#ffffff",
+          transition: "all 0.15s ease",
+          marginBottom: "10px",
+        }}
+      >
+        <input
+          ref={ref}
+          type="file"
+          accept={sel?.accept}
+          style={{ display: "none" }}
+          onChange={(e) => pick(e.target.files?.[0])}
+        />
+        <div style={{ fontSize: "24px", color: "#cccccc", marginBottom: "8px" }}>↑</div>
+        <p style={{ fontSize: "13px", color: file ? "#111" : "#888" }}>
+          {file ? <strong>{file.name}</strong> : "Arraste ou clique para selecionar"}
+        </p>
+        {!file && (
+          <p style={{ fontSize: "11px", color: "#bbbbbb", marginTop: "3px" }}>
+            {sel?.accept?.replace(/\./g, "").toUpperCase()}
+          </p>
+        )}
+      </div>
+
+      <button
+        onClick={submit}
+        disabled={!ok || loading}
+        style={{
+          width: "100%",
+          padding: "10px",
+          border: "none",
+          borderRadius: "8px",
+          background: ok ? "#111111" : "#e8e8e8",
+          color: ok ? "#ffffff" : "#bbbbbb",
+          fontSize: "13px",
+          fontWeight: 500,
+          cursor: ok ? "pointer" : "not-allowed",
+          fontFamily: "inherit",
+          transition: "all 0.15s ease",
+        }}
+      >
+        {loading ? "Adicionando..." : "Adicionar ao módulo"}
+      </button>
+    </div>
+  );
+}
+
+// ---------- DocCard ----------
+
+const TYPE_META: Record<DocType, { label: string; bg: string; color: string }> = {
+  pdf: { label: "PDF", bg: "#FFF0F0", color: "#E57373" },
+  video: { label: "VÍDEO", bg: "#F0F4FF", color: "#6B9CF7" },
+  ppt: { label: "PPT", bg: "#FFF8F0", color: "#F4A460" },
+  doc: { label: "DOC", bg: "#F0F6FF", color: "#5BA0D0" },
+};
+
+function DocCard({
+  doc,
+  onDelete,
+  onPreview,
+}: {
+  doc: Doc;
+  onDelete: (id: string) => void;
+  onPreview: () => void;
+}) {
+  const meta = TYPE_META[doc.type] ?? TYPE_META.doc;
+
+  const open = () => {
+    if (doc.type === "pdf") {
+      onPreview();
+      return;
+    }
+    if (doc.type === "video") {
+      window.open(doc.file_url, "_blank");
+    } else {
+      const a = document.createElement("a");
+      a.href = doc.file_url;
+      a.download = doc.file_name || doc.title;
+      a.click();
+    }
+  };
+
+  const download = () => {
+    const a = document.createElement("a");
+    a.href = doc.file_url;
+    a.download = doc.file_name || doc.title;
+    a.click();
+  };
+
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        border: "0.5px solid #e8e8e8",
+        borderRadius: "10px",
+        padding: "14px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        transition: "border-color 0.15s ease",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#999999")}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e8e8e8")}
+    >
+      <div
+        style={{
+          width: "38px",
+          height: "38px",
+          borderRadius: "8px",
+          background: meta.bg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: "11px", fontWeight: 600, color: meta.color }}>
+          {meta.label.slice(0, 3)}
         </span>
       </div>
 
-      {/* Info */}
-      <div style={{ padding: "10px 12px" }}>
-        <div
-          className="truncate text-[12px]"
-          style={{ fontWeight: 500, color: "#111" }}
-          title={file.name}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontSize: "13px",
+            fontWeight: 500,
+            color: "#111111",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            marginBottom: "3px",
+          }}
         >
-          {file.name}
-        </div>
-        <div className="mt-0.5 text-[11px]" style={{ color: "#BBBBBB" }}>
-          {file.size} · {file.date}
-        </div>
+          {doc.title}
+        </p>
+        <p style={{ fontSize: "11px", color: "#bbbbbb" }}>
+          <span style={{ color: meta.color, fontWeight: 500 }}>{meta.label}</span>
+          {doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}
+          {` · ${formatDate(doc.created_at)}`}
+        </p>
+      </div>
 
-        <div className="mt-2.5 flex gap-1.5">
-          {[Eye, Download, Trash].map((Cmp, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={Cmp === Eye && file.type === "PDF" ? onPreview : undefined}
-              className="flex items-center justify-center transition-colors duration-150"
-              style={{
-                height: 26,
-                width: 26,
-                border: "0.5px solid #E8E8E8",
-                borderRadius: 6,
-                background: "#FFF",
-                color: "#666",
-              }}
-              onMouseEnter={(e) => {
-                if (Cmp === Trash) e.currentTarget.style.color = "#E57373";
-                e.currentTarget.style.borderColor = "#999";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#666";
-                e.currentTarget.style.borderColor = "#E8E8E8";
-              }}
-            >
-              <Cmp size={13} strokeWidth={1.5} />
-            </button>
-          ))}
-        </div>
+      <div style={{ display: "flex", gap: "6px" }}>
+        <button
+          onClick={open}
+          title="Visualizar"
+          style={iconBtn}
+        >
+          <Eye size={13} strokeWidth={1.5} />
+        </button>
+        <button
+          onClick={download}
+          title="Download"
+          style={iconBtn}
+        >
+          <Download size={13} strokeWidth={1.5} />
+        </button>
+        <button
+          onClick={() => onDelete(doc.id)}
+          title="Remover"
+          style={{ ...iconBtn, color: "#cccccc" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "#fca5a5";
+            e.currentTarget.style.color = "#ef4444";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "#e0e0e0";
+            e.currentTarget.style.color = "#cccccc";
+          }}
+        >
+          <Trash size={13} strokeWidth={1.5} />
+        </button>
       </div>
     </div>
   );
 }
+
+const iconBtn: React.CSSProperties = {
+  width: "28px",
+  height: "28px",
+  border: "0.5px solid #e0e0e0",
+  borderRadius: "6px",
+  background: "#ffffff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  color: "#666",
+};
+
+// ---------- Onboarding ----------
 
 function OnboardingTrack({
   editorOpen,
@@ -263,7 +559,6 @@ function OnboardingTrack({
       className="bg-white"
       style={{ border: "0.5px solid #E8E8E8", borderRadius: 10, padding: "14px 16px" }}
     >
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <RouteIcon size={14} strokeWidth={1.5} style={{ color: "#111" }} />
@@ -296,10 +591,9 @@ function OnboardingTrack({
         </div>
       </div>
 
-      {/* Steps */}
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
         {ONBOARDING_STEPS.map((step) => {
-          const style = TYPE_STYLES[step.type];
+          const style = LEGACY_TYPE_STYLES[step.type];
           const { Icon } = style;
           const completed = step.status === "done";
           const isActive = step.status === "active";
