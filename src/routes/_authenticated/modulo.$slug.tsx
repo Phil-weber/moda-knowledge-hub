@@ -26,37 +26,6 @@ export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
 });
 
-type LegacyType = "PDF" | "Vídeo" | "PPT" | "DOC";
-
-interface TypeStyle {
-  bg: string;
-  color: string;
-  Icon: LucideIcon;
-  label: string;
-}
-
-const LEGACY_TYPE_STYLES: Record<LegacyType, TypeStyle> = {
-  PDF: { bg: "#FFF5F5", color: "#E57373", Icon: FileText, label: "PDF" },
-  "Vídeo": { bg: "#F0F4FF", color: "#6B9CF7", Icon: Play, label: "VÍDEO" },
-  PPT: { bg: "#FFF8F0", color: "#F4A460", Icon: Presentation, label: "PPT" },
-  DOC: { bg: "#F0F6FF", color: "#5BA0D0", Icon: FileIcon, label: "DOC" },
-};
-
-interface OnboardingStep {
-  id: number;
-  title: string;
-  type: LegacyType;
-  meta: string;
-  status: "done" | "active" | "pending";
-}
-
-const ONBOARDING_STEPS: OnboardingStep[] = [
-  { id: 1, title: "Intro ao Tech Pack", type: "PDF", meta: "PDF · 2.1 MB", status: "done" },
-  { id: 2, title: "Aula: Estrutura de ficha", type: "Vídeo", meta: "Vídeo · 18 MB", status: "done" },
-  { id: 3, title: "Apresentação de processos", type: "PPT", meta: "PPT · 8.4 MB", status: "active" },
-  { id: 4, title: "Manual de preenchimento", type: "PDF", meta: "PDF · 1.8 MB", status: "pending" },
-  { id: 5, title: "Revisão final", type: "Vídeo", meta: "Vídeo · 12 MB", status: "pending" },
-];
 
 const TABS = ["Todos", "PDF", "Vídeo", "Apresentação", "Documento"] as const;
 type Tab = (typeof TABS)[number];
