@@ -72,11 +72,21 @@ function ModulePage() {
   const { slug } = Route.useParams();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
   const [preview, setPreview] = useState<Doc | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [showTrailEditor, setShowTrailEditor] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
 
   const { docs, addDoc, removeDoc } = useDocs();
+  const { trails, setTrail } = useTrails();
   const all = docs[slug] ?? [];
+  const trailIds = trails[slug] ?? [];
+
+  const trailSteps = trailIds
+    .map((id) => all.find((d) => d.id === id))
+    .filter((d): d is Doc => Boolean(d));
+
+  const completedIds = trailSteps
+    .slice(0, Math.floor(trailSteps.length / 2))
+    .map((d) => d.id);
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
@@ -147,10 +157,46 @@ function ModulePage() {
 
         {/* Conteúdo */}
         <div className="flex-1 px-6 py-6">
-          <OnboardingTrack
-            editorOpen={editorOpen}
-            onToggleEditor={() => setEditorOpen((v) => !v)}
-          />
+          {trailSteps.length > 0 && (
+            <OnboardingTrack
+              steps={trailSteps}
+              completedIds={completedIds}
+              editorOpen={showTrailEditor}
+              onToggleEditor={() => setShowTrailEditor((v) => !v)}
+            />
+          )}
+
+          {trailSteps.length === 0 && all.length > 0 && (
+            <div
+              className="bg-white"
+              style={{
+                border: "0.5px dashed #E0E0E0",
+                borderRadius: 10,
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span className="text-[12px]" style={{ color: "#AAA" }}>
+                Nenhuma trilha de onboarding configurada.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowTrailEditor(true)}
+                className="px-2.5 text-[11px]"
+                style={{
+                  height: 26,
+                  border: "0.5px solid #E0E0E0",
+                  borderRadius: 6,
+                  color: "#555",
+                  background: "#FFF",
+                }}
+              >
+                Criar trilha
+              </button>
+            </div>
+          )}
 
           {showUpload && (
             <div className="mt-4">
@@ -201,7 +247,15 @@ function ModulePage() {
         />
       </div>
 
-      <OnboardingEditorPanel open={editorOpen} onClose={() => setEditorOpen(false)} />
+      {showTrailEditor && (
+        <TrailEditor
+          moduleId={slug}
+          allFiles={all}
+          trailIds={trailIds}
+          onSave={(ids) => setTrail(slug, ids)}
+          onClose={() => setShowTrailEditor(false)}
+        />
+      )}
     </div>
   );
 }
