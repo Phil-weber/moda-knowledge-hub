@@ -455,9 +455,14 @@ export function AppSidebar() {
   );
 }
 
+const QUICK_EMOJIS = [
+  "📦","🚚","📅","✂️","🎨","⚙️","🛡️","📊","🤖",
+  "📁","📋","🔍","💡","🏷️","📌","🔧","📈","🗂️","✅","🌐",
+];
+
 function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
   const [label, setLabel] = useState("");
-  const [selectedIcon, setSelectedIcon] = useState<string>("box");
+  const [emoji, setEmoji] = useState<string>("");
 
   const submit = () => {
     if (!label.trim()) return;
@@ -466,15 +471,16 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
       id: slug,
       slug,
       label: label.trim(),
-      icon: selectedIcon,
+      icon: "box",
       fixed: false,
+      emoji: emoji || null,
     });
     setLabel("");
-    setSelectedIcon("box");
+    setEmoji("");
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       <input
         value={label}
         onChange={(e) => setLabel(e.target.value)}
@@ -492,32 +498,58 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
           if (e.key === "Enter") submit();
         }}
       />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <input
+          value={emoji}
+          onChange={(e) => setEmoji(e.target.value)}
+          placeholder="🎨"
+          maxLength={2}
+          style={{
+            width: "60px",
+            textAlign: "center",
+            fontSize: "20px",
+            padding: "6px",
+            border: "0.5px solid #e0e0e0",
+            borderRadius: "7px",
+            outline: "none",
+            fontFamily: "inherit",
+            background: "#fff",
+          }}
+        />
+        <span style={{ fontSize: 11, color: "#bbb" }}>
+          Cole ou digite qualquer emoji
+        </span>
+      </div>
+
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-        {ICON_OPTIONS.map((key) => {
-          const Icon = ICON_MAP[key];
-          const selected = selectedIcon === key;
+        {QUICK_EMOJIS.map((e) => {
+          const selected = emoji === e;
           return (
             <button
-              key={key}
-              onClick={() => setSelectedIcon(key)}
+              key={e}
+              type="button"
+              onClick={() => setEmoji(e)}
               style={{
                 width: "32px",
                 height: "32px",
-                border: selected ? "1.5px solid #111" : "0.5px solid #e0e0e0",
-                borderRadius: "7px",
+                border: "0.5px solid #e0e0e0",
+                borderRadius: "6px",
                 background: selected ? "#111" : "#fafafa",
+                fontSize: "16px",
+                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
-                color: selected ? "#fff" : "#666",
+                fontFamily: "inherit",
               }}
             >
-              <Icon size={14} strokeWidth={1.5} />
+              {e}
             </button>
           );
         })}
       </div>
+
       <button
         onClick={submit}
         disabled={!label.trim()}
@@ -535,6 +567,155 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
       >
         Adicionar
       </button>
+    </div>
+  );
+}
+
+function SortableModuleList({
+  modules,
+  onReorder,
+  onRemove,
+}: {
+  modules: ModuleItem[];
+  onReorder: (next: ModuleItem[]) => void;
+  onRemove: (id: string) => void;
+}) {
+  const sensors = useSensors(useSensor(PointerSensor));
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const oldIndex = modules.findIndex((m) => m.id === active.id);
+    const newIndex = modules.findIndex((m) => m.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    onReorder(arrayMove(modules, oldIndex, newIndex));
+  };
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={modules.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {modules.map((m) => (
+            <SortableModuleItem key={m.id} mod={m} onRemove={onRemove} />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function SortableModuleItem({
+  mod,
+  onRemove,
+}: {
+  mod: ModuleItem;
+  onRemove: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: mod.id });
+  const MI = getIcon(mod.icon);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        padding: "10px 12px",
+        border: "0.5px solid #e8e8e8",
+        borderRadius: "8px",
+        background: "#fafafa",
+      }}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        style={{
+          cursor: "grab",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          color: "#cccccc",
+          display: "flex",
+        }}
+        aria-label="Arraste"
+      >
+        <GripVertical size={14} />
+      </button>
+      <div
+        style={{
+          width: "30px",
+          height: "30px",
+          borderRadius: "6px",
+          background: "#f0f0f0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 16,
+        }}
+      >
+        {mod.emoji ? mod.emoji : <MI size={14} strokeWidth={1.5} style={{ color: "#666" }} />}
+      </div>
+      <span style={{ flex: 1, fontSize: "13px", fontWeight: 500, color: "#111" }}>
+        {mod.label}
+      </span>
+      {mod.isAI && (
+        <span
+          style={{
+            fontSize: "9px",
+            fontWeight: 500,
+            padding: "2px 6px",
+            borderRadius: "4px",
+            background: "#111",
+            color: "#fff",
+            letterSpacing: "0.04em",
+          }}
+        >
+          IA
+        </span>
+      )}
+      {mod.fixed ? (
+        <span
+          style={{
+            fontSize: "10px",
+            color: "#cccccc",
+            padding: "2px 8px",
+            border: "0.5px solid #e0e0e0",
+            borderRadius: "4px",
+          }}
+        >
+          Fixo
+        </span>
+      ) : (
+        <button
+          onClick={() => onRemove(mod.id)}
+          style={{
+            width: "26px",
+            height: "26px",
+            border: "0.5px solid #e8e8e8",
+            borderRadius: "5px",
+            background: "#ffffff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            color: "#cccccc",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "#fca5a5";
+            e.currentTarget.style.color = "#ef4444";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "#e8e8e8";
+            e.currentTarget.style.color = "#cccccc";
+          }}
+        >
+          <Trash2 size={12} strokeWidth={1.5} />
+        </button>
+      )}
     </div>
   );
 }
