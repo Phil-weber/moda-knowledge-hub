@@ -249,6 +249,10 @@ function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
     if (!file || !title.trim()) return;
     setLoading(true);
     const url = URL.createObjectURL(file);
+    let file_data: string | undefined;
+    if (type === "pdf") {
+      file_data = await toBase64(file);
+    }
     onUpload({
       id: Date.now().toString(),
       title: title.trim(),
@@ -257,6 +261,7 @@ function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
       file_name: file.name,
       file_size: file.size,
       created_at: new Date().toISOString(),
+      file_data,
     });
     setTitle("");
     setFile(null);
