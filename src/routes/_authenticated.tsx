@@ -4,6 +4,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { DocsProvider } from "@/lib/docs-context";
+import { TrailsProvider } from "@/lib/trails-context";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppTopbar } from "@/components/AppTopbar";
 
