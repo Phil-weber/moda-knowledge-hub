@@ -23,6 +23,21 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ModuleItem {
   id: string;
@@ -31,6 +46,7 @@ interface ModuleItem {
   icon: string;
   isAI?: boolean;
   fixed?: boolean;
+  emoji?: string | null;
 }
 
 const ICON_MAP: Record<string, LucideIcon> = {
