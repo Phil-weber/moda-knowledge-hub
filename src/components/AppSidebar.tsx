@@ -414,108 +414,17 @@ export function AppSidebar() {
               }}
             >
               <p style={{ fontSize: "11px", color: "#bbbbbb", marginBottom: "4px" }}>
-                Módulos fixos não podem ser removidos.
+                Arraste para reordenar. Módulos fixos não podem ser removidos.
               </p>
-              {modules.map((m) => {
-                const MI = getIcon(m.icon);
-                return (
-                  <div
-                    key={m.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      padding: "10px 12px",
-                      border: "0.5px solid #e8e8e8",
-                      borderRadius: "8px",
-                      background: "#fafafa",
-                    }}
-                  >
-                    <GripVertical size={14} style={{ color: "#cccccc", flexShrink: 0 }} />
-                    <div
-                      style={{
-                        width: "30px",
-                        height: "30px",
-                        borderRadius: "6px",
-                        background: "#f0f0f0",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <MI size={14} strokeWidth={1.5} style={{ color: "#666" }} />
-                    </div>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        color: "#111",
-                      }}
-                    >
-                      {m.label}
-                    </span>
-                    {m.isAI && (
-                      <span
-                        style={{
-                          fontSize: "9px",
-                          fontWeight: 500,
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          background: "#111",
-                          color: "#fff",
-                          letterSpacing: "0.04em",
-                        }}
-                      >
-                        IA
-                      </span>
-                    )}
-                    {m.fixed ? (
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          color: "#cccccc",
-                          padding: "2px 8px",
-                          border: "0.5px solid #e0e0e0",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        Fixo
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setModules((prev) => prev.filter((x) => x.id !== m.id));
-                        }}
-                        style={{
-                          width: "26px",
-                          height: "26px",
-                          border: "0.5px solid #e8e8e8",
-                          borderRadius: "5px",
-                          background: "#ffffff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          cursor: "pointer",
-                          color: "#cccccc",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = "#fca5a5";
-                          e.currentTarget.style.color = "#ef4444";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = "#e8e8e8";
-                          e.currentTarget.style.color = "#cccccc";
-                        }}
-                      >
-                        <Trash2 size={12} strokeWidth={1.5} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+              <SortableModuleList
+                modules={modules}
+                onReorder={setModules}
+                onRemove={(id) =>
+                  setModules((prev) => prev.filter((x) => x.id !== id))
+                }
+              />
             </div>
+
 
             <div
               style={{
