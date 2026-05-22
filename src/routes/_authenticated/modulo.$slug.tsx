@@ -219,6 +219,18 @@ function formatDate(iso: string): string {
 
 // ---------- UploadZone ----------
 
+const toBase64 = (f: File) =>
+  new Promise<string>((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => {
+      const result = r.result as string;
+      res(result.split(",")[1] ?? "");
+    };
+    r.onerror = rej;
+    r.readAsDataURL(f);
+  });
+
+
 const DOC_TYPES: Array<{ value: DocType; label: string; accept: string }> = [
   { value: "pdf", label: "PDF", accept: ".pdf" },
   { value: "video", label: "Vídeo", accept: ".mp4,.mov,.avi,.webm" },
