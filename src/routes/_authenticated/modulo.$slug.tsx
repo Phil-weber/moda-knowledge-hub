@@ -196,6 +196,7 @@ function ModulePage() {
               : ""
           }
           fileUrl={preview?.file_url ?? ""}
+          fileData={preview?.file_data}
         />
       </div>
 
