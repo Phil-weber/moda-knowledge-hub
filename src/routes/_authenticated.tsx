@@ -42,15 +42,17 @@ function Gate() {
 
   return (
     <DocsProvider>
-      <div className="flex min-h-screen w-full" style={{ background: "var(--surface)" }}>
-        <AppSidebar />
-        <div className="flex min-h-screen flex-1 flex-col">
-          <AppTopbar />
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
+      <TrailsProvider>
+        <div className="flex min-h-screen w-full" style={{ background: "var(--surface)" }}>
+          <AppSidebar />
+          <div className="flex min-h-screen flex-1 flex-col">
+            <AppTopbar />
+            <main className="flex-1 overflow-auto">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
+      </TrailsProvider>
     </DocsProvider>
   );
 }
