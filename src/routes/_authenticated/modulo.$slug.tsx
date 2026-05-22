@@ -18,44 +18,14 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PdfPreviewModal } from "@/components/PdfPreviewModal";
-import { OnboardingEditorPanel } from "@/components/OnboardingEditorPanel";
+import { TrailEditor } from "@/components/TrailEditor";
 import { useDocs, type Doc, type DocType } from "@/lib/docs-context";
+import { useTrails } from "@/lib/trails-context";
 
 export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
 });
 
-type LegacyType = "PDF" | "Vídeo" | "PPT" | "DOC";
-
-interface TypeStyle {
-  bg: string;
-  color: string;
-  Icon: LucideIcon;
-  label: string;
-}
-
-const LEGACY_TYPE_STYLES: Record<LegacyType, TypeStyle> = {
-  PDF: { bg: "#FFF5F5", color: "#E57373", Icon: FileText, label: "PDF" },
-  "Vídeo": { bg: "#F0F4FF", color: "#6B9CF7", Icon: Play, label: "VÍDEO" },
-  PPT: { bg: "#FFF8F0", color: "#F4A460", Icon: Presentation, label: "PPT" },
-  DOC: { bg: "#F0F6FF", color: "#5BA0D0", Icon: FileIcon, label: "DOC" },
-};
-
-interface OnboardingStep {
-  id: number;
-  title: string;
-  type: LegacyType;
-  meta: string;
-  status: "done" | "active" | "pending";
-}
-
-const ONBOARDING_STEPS: OnboardingStep[] = [
-  { id: 1, title: "Intro ao Tech Pack", type: "PDF", meta: "PDF · 2.1 MB", status: "done" },
-  { id: 2, title: "Aula: Estrutura de ficha", type: "Vídeo", meta: "Vídeo · 18 MB", status: "done" },
-  { id: 3, title: "Apresentação de processos", type: "PPT", meta: "PPT · 8.4 MB", status: "active" },
-  { id: 4, title: "Manual de preenchimento", type: "PDF", meta: "PDF · 1.8 MB", status: "pending" },
-  { id: 5, title: "Revisão final", type: "Vídeo", meta: "Vídeo · 12 MB", status: "pending" },
-];
 
 const TABS = ["Todos", "PDF", "Vídeo", "Apresentação", "Documento"] as const;
 type Tab = (typeof TABS)[number];
@@ -71,11 +41,21 @@ function ModulePage() {
   const { slug } = Route.useParams();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
   const [preview, setPreview] = useState<Doc | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [showTrailEditor, setShowTrailEditor] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
 
   const { docs, addDoc, removeDoc } = useDocs();
+  const { trails, setTrail } = useTrails();
   const all = docs[slug] ?? [];
+  const trailIds = trails[slug] ?? [];
+
+  const trailSteps = trailIds
+    .map((id) => all.find((d) => d.id === id))
+    .filter((d): d is Doc => Boolean(d));
+
+  const completedIds = trailSteps
+    .slice(0, Math.floor(trailSteps.length / 2))
+    .map((d) => d.id);
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
@@ -146,10 +126,46 @@ function ModulePage() {
 
         {/* Conteúdo */}
         <div className="flex-1 px-6 py-6">
-          <OnboardingTrack
-            editorOpen={editorOpen}
-            onToggleEditor={() => setEditorOpen((v) => !v)}
-          />
+          {trailSteps.length > 0 && (
+            <OnboardingTrack
+              steps={trailSteps}
+              completedIds={completedIds}
+              editorOpen={showTrailEditor}
+              onToggleEditor={() => setShowTrailEditor((v) => !v)}
+            />
+          )}
+
+          {trailSteps.length === 0 && all.length > 0 && (
+            <div
+              className="bg-white"
+              style={{
+                border: "0.5px dashed #E0E0E0",
+                borderRadius: 10,
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span className="text-[12px]" style={{ color: "#AAA" }}>
+                Nenhuma trilha de onboarding configurada.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowTrailEditor(true)}
+                className="px-2.5 text-[11px]"
+                style={{
+                  height: 26,
+                  border: "0.5px solid #E0E0E0",
+                  borderRadius: 6,
+                  color: "#555",
+                  background: "#FFF",
+                }}
+              >
+                Criar trilha
+              </button>
+            </div>
+          )}
 
           {showUpload && (
             <div className="mt-4">
@@ -200,7 +216,15 @@ function ModulePage() {
         />
       </div>
 
-      <OnboardingEditorPanel open={editorOpen} onClose={() => setEditorOpen(false)} />
+      {showTrailEditor && (
+        <TrailEditor
+          moduleId={slug}
+          allFiles={all}
+          trailIds={trailIds}
+          onSave={(ids) => setTrail(slug, ids)}
+          onClose={() => setShowTrailEditor(false)}
+        />
+      )}
     </div>
   );
 }
@@ -562,15 +586,28 @@ const iconBtn: React.CSSProperties = {
 // ---------- Onboarding ----------
 
 function OnboardingTrack({
+  steps,
+  completedIds,
   editorOpen,
   onToggleEditor,
 }: {
+  steps: Doc[];
+  completedIds: string[];
   editorOpen: boolean;
   onToggleEditor: () => void;
 }) {
-  const total = ONBOARDING_STEPS.length;
-  const done = ONBOARDING_STEPS.filter((s) => s.status === "done").length;
-  const pct = (done / total) * 100;
+  const total = steps.length;
+  const done = completedIds.length;
+  const pct = total ? (done / total) * 100 : 0;
+
+  const TYPE_VISUAL: Record<DocType, { bg: string; color: string; Icon: LucideIcon; label: string }> = {
+    pdf: { bg: "#FFF5F5", color: "#E57373", Icon: FileText, label: "PDF" },
+    video: { bg: "#F0F4FF", color: "#6B9CF7", Icon: Play, label: "VÍDEO" },
+    ppt: { bg: "#FFF8F0", color: "#F4A460", Icon: Presentation, label: "PPT" },
+    doc: { bg: "#F0F6FF", color: "#5BA0D0", Icon: FileIcon, label: "DOC" },
+  };
+
+  const activeIndex = done; // próximo passo = ativo
 
   return (
     <div
@@ -610,12 +647,12 @@ function OnboardingTrack({
       </div>
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        {ONBOARDING_STEPS.map((step) => {
-          const style = LEGACY_TYPE_STYLES[step.type];
-          const { Icon } = style;
-          const completed = step.status === "done";
-          const isActive = step.status === "active";
-          const opacity = step.status === "pending" ? 0.6 : 1;
+        {steps.map((step, idx) => {
+          const visual = TYPE_VISUAL[step.type] ?? TYPE_VISUAL.doc;
+          const { Icon } = visual;
+          const completed = completedIds.includes(step.id);
+          const isActive = !completed && idx === activeIndex;
+          const opacity = completed || isActive ? 1 : 0.6;
           const borderColor = completed || isActive ? "#111" : "#E8E8E8";
 
           return (
@@ -631,14 +668,14 @@ function OnboardingTrack({
             >
               <div
                 className="relative flex items-center justify-center"
-                style={{ height: 70, background: style.bg }}
+                style={{ height: 70, background: visual.bg }}
               >
-                <Icon size={24} strokeWidth={1.25} style={{ color: style.color }} />
+                <Icon size={24} strokeWidth={1.25} style={{ color: visual.color }} />
                 <div
                   className="absolute left-1.5 top-1.5 flex items-center justify-center text-[10px] text-white"
                   style={{ width: 18, height: 18, borderRadius: 999, background: "#111" }}
                 >
-                  {step.id}
+                  {idx + 1}
                 </div>
                 {completed && (
                   <div
@@ -658,7 +695,7 @@ function OnboardingTrack({
                   {step.title}
                 </div>
                 <div className="mt-0.5 text-[10px]" style={{ color: "#BBB" }}>
-                  {step.meta}
+                  {visual.label} · {formatSize(step.file_size)}
                 </div>
               </div>
             </div>

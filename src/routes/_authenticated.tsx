@@ -4,6 +4,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { DocsProvider } from "@/lib/docs-context";
+import { TrailsProvider } from "@/lib/trails-context";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppTopbar } from "@/components/AppTopbar";
 
@@ -41,15 +42,17 @@ function Gate() {
 
   return (
     <DocsProvider>
-      <div className="flex min-h-screen w-full" style={{ background: "var(--surface)" }}>
-        <AppSidebar />
-        <div className="flex min-h-screen flex-1 flex-col">
-          <AppTopbar />
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
+      <TrailsProvider>
+        <div className="flex min-h-screen w-full" style={{ background: "var(--surface)" }}>
+          <AppSidebar />
+          <div className="flex min-h-screen flex-1 flex-col">
+            <AppTopbar />
+            <main className="flex-1 overflow-auto">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
+      </TrailsProvider>
     </DocsProvider>
   );
 }
