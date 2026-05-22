@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PdfPreviewModal } from "@/components/PdfPreviewModal";
-import { OnboardingEditorPanel } from "@/components/OnboardingEditorPanel";
+import { TrailEditor } from "@/components/TrailEditor";
 import { useDocs, type Doc, type DocType } from "@/lib/docs-context";
+import { useTrails } from "@/lib/trails-context";
 
 export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
