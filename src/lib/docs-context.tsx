@@ -11,6 +11,7 @@ export interface Doc {
   file_name: string;
   file_size: number;
   created_at: string;
+  file_data?: string;
 }
 
 export type DocsMap = Record<string, Doc[]>;

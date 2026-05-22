@@ -172,8 +172,9 @@ export function AppSidebar() {
         title={collapsed ? "Expandir menu" : "Recolher menu"}
         style={{
           position: "absolute",
-          top: "50px",
+          top: "50%",
           right: "-11px",
+          transform: "translateY(-50%)",
           width: "22px",
           height: "22px",
           borderRadius: "50%",
@@ -185,6 +186,7 @@ export function AppSidebar() {
           cursor: "pointer",
           zIndex: 50,
           color: "#888888",
+          flexShrink: 0,
         }}
       >
         {collapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
