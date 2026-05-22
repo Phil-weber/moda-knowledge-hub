@@ -617,15 +617,28 @@ const iconBtn: React.CSSProperties = {
 // ---------- Onboarding ----------
 
 function OnboardingTrack({
+  steps,
+  completedIds,
   editorOpen,
   onToggleEditor,
 }: {
+  steps: Doc[];
+  completedIds: string[];
   editorOpen: boolean;
   onToggleEditor: () => void;
 }) {
-  const total = ONBOARDING_STEPS.length;
-  const done = ONBOARDING_STEPS.filter((s) => s.status === "done").length;
-  const pct = (done / total) * 100;
+  const total = steps.length;
+  const done = completedIds.length;
+  const pct = total ? (done / total) * 100 : 0;
+
+  const TYPE_VISUAL: Record<DocType, { bg: string; color: string; Icon: LucideIcon; label: string }> = {
+    pdf: { bg: "#FFF5F5", color: "#E57373", Icon: FileText, label: "PDF" },
+    video: { bg: "#F0F4FF", color: "#6B9CF7", Icon: Play, label: "VÍDEO" },
+    ppt: { bg: "#FFF8F0", color: "#F4A460", Icon: Presentation, label: "PPT" },
+    doc: { bg: "#F0F6FF", color: "#5BA0D0", Icon: FileIcon, label: "DOC" },
+  };
+
+  const activeIndex = done; // próximo passo = ativo
 
   return (
     <div
@@ -665,12 +678,12 @@ function OnboardingTrack({
       </div>
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        {ONBOARDING_STEPS.map((step) => {
-          const style = LEGACY_TYPE_STYLES[step.type];
-          const { Icon } = style;
-          const completed = step.status === "done";
-          const isActive = step.status === "active";
-          const opacity = step.status === "pending" ? 0.6 : 1;
+        {steps.map((step, idx) => {
+          const visual = TYPE_VISUAL[step.type] ?? TYPE_VISUAL.doc;
+          const { Icon } = visual;
+          const completed = completedIds.includes(step.id);
+          const isActive = !completed && idx === activeIndex;
+          const opacity = completed || isActive ? 1 : 0.6;
           const borderColor = completed || isActive ? "#111" : "#E8E8E8";
 
           return (
@@ -686,14 +699,14 @@ function OnboardingTrack({
             >
               <div
                 className="relative flex items-center justify-center"
-                style={{ height: 70, background: style.bg }}
+                style={{ height: 70, background: visual.bg }}
               >
-                <Icon size={24} strokeWidth={1.25} style={{ color: style.color }} />
+                <Icon size={24} strokeWidth={1.25} style={{ color: visual.color }} />
                 <div
                   className="absolute left-1.5 top-1.5 flex items-center justify-center text-[10px] text-white"
                   style={{ width: 18, height: 18, borderRadius: 999, background: "#111" }}
                 >
-                  {step.id}
+                  {idx + 1}
                 </div>
                 {completed && (
                   <div
@@ -713,7 +726,7 @@ function OnboardingTrack({
                   {step.title}
                 </div>
                 <div className="mt-0.5 text-[10px]" style={{ color: "#BBB" }}>
-                  {step.meta}
+                  {visual.label} · {formatSize(step.file_size)}
                 </div>
               </div>
             </div>
