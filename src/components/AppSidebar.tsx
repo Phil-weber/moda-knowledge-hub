@@ -270,7 +270,13 @@ export function AppSidebar() {
                 if (!isActive) e.currentTarget.style.background = "transparent";
               }}
             >
-              <MI size={15} strokeWidth={1.5} />
+              {m.emoji ? (
+                <span style={{ fontSize: 15, lineHeight: 1, width: 15, textAlign: "center" }}>
+                  {m.emoji}
+                </span>
+              ) : (
+                <MI size={15} strokeWidth={1.5} />
+              )}
               {!collapsed && (
                 <>
                   <span style={{ flex: 1 }}>{m.label}</span>
