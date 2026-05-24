@@ -39,6 +39,8 @@ const TAB_TYPE: Record<Exclude<Tab, "Todos">, DocType> = {
 
 function ModulePage() {
   const { slug } = Route.useParams();
+  if (slug === "faq-ia") return <FAQView />;
+
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
   const [preview, setPreview] = useState<Doc | null>(null);
   const [showTrailEditor, setShowTrailEditor] = useState(false);
