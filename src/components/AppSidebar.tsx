@@ -532,16 +532,18 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
               type="button"
               onClick={() => setEmoji(e)}
               style={{
-                width: "32px",
-                height: "32px",
-                border: "0.5px solid #e0e0e0",
+                width: "28px",
+                height: "28px",
+                border: selected ? "1px solid #111" : "0.5px solid #e0e0e0",
                 borderRadius: "6px",
-                background: selected ? "#111" : "#fafafa",
-                fontSize: "16px",
+                background: selected ? "#111" : "#ffffff",
+                fontSize: "13px",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                filter: selected ? "grayscale(1) invert(1)" : "grayscale(0.3)",
+                transition: "all 0.12s ease",
                 fontFamily: "inherit",
               }}
             >
