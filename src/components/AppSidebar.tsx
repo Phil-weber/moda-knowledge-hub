@@ -507,15 +507,15 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
           placeholder="🎨"
           maxLength={2}
           style={{
-            width: "60px",
+            width: "52px",
             textAlign: "center",
-            fontSize: "20px",
-            padding: "6px",
+            fontSize: "16px",
+            padding: "6px 4px",
             border: "0.5px solid #e0e0e0",
             borderRadius: "7px",
             outline: "none",
             fontFamily: "inherit",
-            background: "#fff",
+            background: "#fafafa",
           }}
         />
         <span style={{ fontSize: 11, color: "#bbb" }}>
