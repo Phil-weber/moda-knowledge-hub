@@ -17,7 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { PdfPreviewModal } from "@/components/PdfPreviewModal";
+import { FileViewerModal } from "@/components/FileViewerModal";
 import { TrailEditor } from "@/components/TrailEditor";
 import { useDocs, type Doc, type DocType } from "@/lib/docs-context";
 import { useTrails } from "@/lib/trails-context";
@@ -39,6 +39,8 @@ const TAB_TYPE: Record<Exclude<Tab, "Todos">, DocType> = {
 
 function ModulePage() {
   const { slug } = Route.useParams();
+  if (slug === "faq-ia") return <FAQView />;
+
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
   const [preview, setPreview] = useState<Doc | null>(null);
   const [showTrailEditor, setShowTrailEditor] = useState(false);
@@ -202,17 +204,10 @@ function ModulePage() {
           )}
         </div>
 
-        <PdfPreviewModal
-          open={!!preview && preview.type === "pdf"}
+        <FileViewerModal
+          open={!!preview}
           onClose={() => setPreview(null)}
-          fileName={preview?.title ?? ""}
-          metadata={
-            preview
-              ? `${preview.type.toUpperCase()} · ${formatSize(preview.file_size)} · ${formatDate(preview.created_at)}`
-              : ""
-          }
-          fileUrl={preview?.file_url ?? ""}
-          fileData={preview?.file_data}
+          doc={preview}
         />
       </div>
 
@@ -461,18 +456,7 @@ function DocCard({
   const meta = TYPE_META[doc.type] ?? TYPE_META.doc;
 
   const open = () => {
-    if (doc.type === "pdf") {
-      onPreview();
-      return;
-    }
-    if (doc.type === "video") {
-      window.open(doc.file_url, "_blank");
-    } else {
-      const a = document.createElement("a");
-      a.href = doc.file_url;
-      a.download = doc.file_name || doc.title;
-      a.click();
-    }
+    onPreview();
   };
 
   const download = () => {
@@ -703,5 +687,255 @@ function OnboardingTrack({
         })}
       </div>
     </div>
+  );
+}
+
+// ---------- FAQ View ----------
+
+function FAQView() {
+  const [tab, setTab] = useState<"docs" | "chat">("docs");
+  const [faqDocs, setFaqDocs] = useState<Doc[]>([]);
+  const [showUpload, setShowUpload] = useState(false);
+
+  const tabStyle = (t: "docs" | "chat"): React.CSSProperties => ({
+    padding: "10px 16px",
+    border: "none",
+    background: "transparent",
+    fontSize: "13px",
+    fontFamily: "inherit",
+    cursor: "pointer",
+    fontWeight: tab === t ? 500 : 400,
+    color: tab === t ? "#111" : "#aaa",
+    borderBottom: `2px solid ${tab === t ? "#111" : "transparent"}`,
+    marginBottom: "-0.5px",
+    transition: "all 0.12s ease",
+  });
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div
+        style={{
+          padding: "20px 28px 0",
+          background: "#fff",
+          borderBottom: "0.5px solid #e8e8e8",
+          flexShrink: 0,
+        }}
+      >
+        <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", marginBottom: "2px" }}>
+          FAQ — IA
+        </h1>
+        <p style={{ fontSize: "12px", color: "#aaa", marginBottom: "14px" }}>
+          Documentação oficial e assistente inteligente
+        </p>
+        <div style={{ display: "flex", gap: "0" }}>
+          <button style={tabStyle("docs")} onClick={() => setTab("docs")}>
+            📄 Documento Oficial
+          </button>
+          <button style={tabStyle("chat")} onClick={() => setTab("chat")}>
+            🤖 Assistente Inteligente
+          </button>
+        </div>
+      </div>
+
+      {tab === "docs" && (
+        <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: "20px",
+            }}
+          >
+            <p style={{ fontSize: "13px", color: "#888", maxWidth: "480px", lineHeight: 1.6 }}>
+              Faça upload do arquivo de FAQ oficial (PPT, PDF ou Doc). Os usuários poderão
+              visualizá-lo ou baixá-lo diretamente aqui.
+            </p>
+            <button
+              onClick={() => setShowUpload((v) => !v)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                height: "34px",
+                padding: "0 16px",
+                background: "#111",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              + Adicionar
+            </button>
+          </div>
+
+          {showUpload && (
+            <UploadZone
+              onUpload={(doc) => {
+                setFaqDocs((p) => [...p, doc]);
+                setShowUpload(false);
+              }}
+            />
+          )}
+
+          {faqDocs.length === 0 && !showUpload ? (
+            <div style={{ textAlign: "center", padding: "80px 0", color: "#ccc" }}>
+              <div style={{ fontSize: "36px", marginBottom: "12px" }}>📄</div>
+              <p style={{ fontSize: "13px", color: "#bbb" }}>
+                Nenhum arquivo ainda.
+                <br />
+                Clique em "Adicionar" para fazer upload do FAQ oficial.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {faqDocs.map((doc) => (
+                <DocCard
+                  key={doc.id}
+                  doc={doc}
+                  onDelete={(id) => setFaqDocs((p) => p.filter((d) => d.id !== id))}
+                  onPreview={() => {}}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "chat" && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <ChatbotSection />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChatbotSection() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Array<{ role: "user" | "bot"; text: string }>>([]);
+
+  const send = () => {
+    const text = input.trim();
+    if (!text) return;
+    setMessages((m) => [
+      ...m,
+      { role: "user", text },
+      { role: "bot", text: "Conectando ao Dify.ai…" },
+    ]);
+    setInput("");
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "14px 28px",
+          borderBottom: "0.5px solid #e8e8e8",
+          background: "#fff",
+        }}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            background: "#111",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+          }}
+        >
+          🤖
+        </div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "#111" }}>Assistente PLM</div>
+          <div style={{ fontSize: 11, color: "#aaa" }}>
+            Powered by Dify.ai · RAG interno · Sem histórico entre sessões
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 28px", background: "#fafafa" }}>
+        {messages.length === 0 ? (
+          <div style={{ textAlign: "center", color: "#bbb", marginTop: 60, fontSize: 13 }}>
+            Faça uma pergunta sobre o sistema PLM.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                style={{
+                  alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                  maxWidth: "70%",
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "0.5px solid #e8e8e8",
+                  background: m.role === "user" ? "#111" : "#fff",
+                  color: m.role === "user" ? "#fff" : "#111",
+                  fontSize: 13,
+                }}
+              >
+                {m.text}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          padding: "12px 28px",
+          borderTop: "0.5px solid #e8e8e8",
+          background: "#fff",
+        }}
+      >
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") send();
+          }}
+          placeholder="Pergunte algo…"
+          style={{
+            flex: 1,
+            padding: "10px 12px",
+            border: "0.5px solid #e0e0e0",
+            borderRadius: 8,
+            outline: "none",
+            fontSize: 13,
+            fontFamily: "inherit",
+          }}
+        />
+        <button
+          onClick={send}
+          style={{
+            padding: "0 18px",
+            background: "#111",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Enviar
+        </button>
+      </div>
+    </>
   );
 }

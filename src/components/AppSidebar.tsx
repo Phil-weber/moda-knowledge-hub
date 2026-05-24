@@ -458,6 +458,7 @@ export function AppSidebar() {
 const QUICK_EMOJIS = [
   "📦","🚚","📅","✂️","🎨","⚙️","🛡️","📊","🤖",
   "📁","📋","🔍","💡","🏷️","📌","🔧","📈","🗂️","✅","🌐",
+  "👗","🧵","🪡","🧶","👔","👠","🧣","🪢","🎀","💼",
 ];
 
 function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
@@ -506,15 +507,15 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
           placeholder="🎨"
           maxLength={2}
           style={{
-            width: "60px",
+            width: "52px",
             textAlign: "center",
-            fontSize: "20px",
-            padding: "6px",
+            fontSize: "16px",
+            padding: "6px 4px",
             border: "0.5px solid #e0e0e0",
             borderRadius: "7px",
             outline: "none",
             fontFamily: "inherit",
-            background: "#fff",
+            background: "#fafafa",
           }}
         />
         <span style={{ fontSize: 11, color: "#bbb" }}>
@@ -531,16 +532,18 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
               type="button"
               onClick={() => setEmoji(e)}
               style={{
-                width: "32px",
-                height: "32px",
-                border: "0.5px solid #e0e0e0",
+                width: "28px",
+                height: "28px",
+                border: selected ? "1px solid #111" : "0.5px solid #e0e0e0",
                 borderRadius: "6px",
-                background: selected ? "#111" : "#fafafa",
-                fontSize: "16px",
+                background: selected ? "#111" : "#ffffff",
+                fontSize: "13px",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                filter: selected ? "grayscale(1) invert(1)" : "grayscale(0.3)",
+                transition: "all 0.12s ease",
                 fontFamily: "inherit",
               }}
             >
