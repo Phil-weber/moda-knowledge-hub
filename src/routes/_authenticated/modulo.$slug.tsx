@@ -454,18 +454,7 @@ function DocCard({
   const meta = TYPE_META[doc.type] ?? TYPE_META.doc;
 
   const open = () => {
-    if (doc.type === "pdf") {
-      onPreview();
-      return;
-    }
-    if (doc.type === "video") {
-      window.open(doc.file_url, "_blank");
-    } else {
-      const a = document.createElement("a");
-      a.href = doc.file_url;
-      a.download = doc.file_name || doc.title;
-      a.click();
-    }
+    onPreview();
   };
 
   const download = () => {
