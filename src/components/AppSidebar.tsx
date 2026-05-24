@@ -458,6 +458,7 @@ export function AppSidebar() {
 const QUICK_EMOJIS = [
   "📦","🚚","📅","✂️","🎨","⚙️","🛡️","📊","🤖",
   "📁","📋","🔍","💡","🏷️","📌","🔧","📈","🗂️","✅","🌐",
+  "👗","🧵","🪡","🧶","👔","👠","🧣","🪢","🎀","💼",
 ];
 
 function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
