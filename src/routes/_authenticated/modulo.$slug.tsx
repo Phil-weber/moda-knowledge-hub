@@ -202,17 +202,10 @@ function ModulePage() {
           )}
         </div>
 
-        <PdfPreviewModal
-          open={!!preview && preview.type === "pdf"}
+        <FileViewerModal
+          open={!!preview}
           onClose={() => setPreview(null)}
-          fileName={preview?.title ?? ""}
-          metadata={
-            preview
-              ? `${preview.type.toUpperCase()} · ${formatSize(preview.file_size)} · ${formatDate(preview.created_at)}`
-              : ""
-          }
-          fileUrl={preview?.file_url ?? ""}
-          fileData={preview?.file_data}
+          doc={preview}
         />
       </div>
 
