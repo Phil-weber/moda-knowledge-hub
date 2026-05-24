@@ -17,7 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { PdfPreviewModal } from "@/components/PdfPreviewModal";
+import { FileViewerModal } from "@/components/FileViewerModal";
 import { TrailEditor } from "@/components/TrailEditor";
 import { useDocs, type Doc, type DocType } from "@/lib/docs-context";
 import { useTrails } from "@/lib/trails-context";
