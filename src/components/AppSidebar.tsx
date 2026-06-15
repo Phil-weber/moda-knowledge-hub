@@ -469,15 +469,30 @@ export function AppSidebar() {
   );
 }
 
-const QUICK_EMOJIS = [
-  "📦","🚚","📅","✂️","🎨","⚙️","🛡️","📊","🤖",
-  "📁","📋","🔍","💡","🏷️","📌","🔧","📈","🗂️","✅","🌐",
-  "👗","🧵","🪡","🧶","👔","👠","🧣","🪢","🎀","💼",
+const ICON_LIBRARY: Array<{ key: string; Icon: LucideIcon; label: string }> = [
+  { key: "box", Icon: Package, label: "Caixa" },
+  { key: "truck", Icon: Truck, label: "Caminhão" },
+  { key: "calendar", Icon: Calendar, label: "Calendário" },
+  { key: "scissors", Icon: Scissors, label: "Tesoura" },
+  { key: "color", Icon: Palette, label: "Paleta" },
+  { key: "settings", Icon: Settings2, label: "Ajustes" },
+  { key: "shield", Icon: ShieldCheck, label: "Escudo" },
+  { key: "chart", Icon: BarChart2, label: "Gráfico" },
+  { key: "bot", Icon: Bot, label: "Bot" },
+  { key: "file", Icon: FileText, label: "Arquivo" },
+  { key: "folder", Icon: Inbox, label: "Pasta" },
+  { key: "help", Icon: HelpCircle, label: "Ajuda" },
+  { key: "upload", Icon: Upload, label: "Upload" },
+  { key: "eye", Icon: Eye, label: "Olho" },
+  { key: "check", Icon: Check, label: "Check" },
+  { key: "video", Icon: Video, label: "Vídeo" },
+  { key: "slides", Icon: Presentation, label: "Slides" },
+  { key: "download", Icon: Download, label: "Download" },
 ];
 
 function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
   const [label, setLabel] = useState("");
-  const [emoji, setEmoji] = useState<string>("");
+  const [iconKey, setIconKey] = useState<string>("box");
 
   const submit = () => {
     if (!label.trim()) return;
@@ -486,12 +501,12 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
       id: slug,
       slug,
       label: label.trim(),
-      icon: "box",
+      icon: iconKey,
       fixed: false,
-      emoji: emoji || null,
+      emoji: null,
     });
     setLabel("");
-    setEmoji("");
+    setIconKey("box");
   };
 
   return (
@@ -514,54 +529,38 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
         }}
       />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <input
-          value={emoji}
-          onChange={(e) => setEmoji(e.target.value)}
-          placeholder="🎨"
-          maxLength={2}
-          style={{
-            width: "52px",
-            textAlign: "center",
-            fontSize: "16px",
-            padding: "6px 4px",
-            border: "0.5px solid #e0e0e0",
-            borderRadius: "7px",
-            outline: "none",
-            fontFamily: "inherit",
-            background: "#fafafa",
-          }}
-        />
-        <span style={{ fontSize: 11, color: "#bbb" }}>
-          Cole ou digite qualquer emoji
-        </span>
-      </div>
-
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-        {QUICK_EMOJIS.map((e) => {
-          const selected = emoji === e;
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(9, 1fr)",
+          gap: "6px",
+          marginBottom: "12px",
+        }}
+      >
+        {ICON_LIBRARY.map(({ key, Icon, label: lbl }) => {
+          const selected = iconKey === key;
           return (
             <button
-              key={e}
+              key={key}
               type="button"
-              onClick={() => setEmoji(e)}
+              onClick={() => setIconKey(key)}
+              title={lbl}
               style={{
-                width: "28px",
-                height: "28px",
+                width: "38px",
+                height: "38px",
                 border: selected ? "1px solid #111" : "0.5px solid #e0e0e0",
-                borderRadius: "6px",
+                borderRadius: "7px",
                 background: selected ? "#111" : "#ffffff",
-                fontSize: "13px",
+                color: selected ? "#fff" : "#666",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                filter: selected ? "grayscale(1) invert(1)" : "grayscale(0.3)",
                 transition: "all 0.12s ease",
                 fontFamily: "inherit",
               }}
             >
-              {e}
+              <Icon size={16} strokeWidth={1.5} />
             </button>
           );
         })}
