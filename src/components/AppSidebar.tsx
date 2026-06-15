@@ -21,6 +21,15 @@ import {
   GripVertical,
   Trash2,
   X,
+  FileText,
+  Inbox,
+  HelpCircle,
+  Upload,
+  Eye,
+  Check,
+  Video,
+  Presentation,
+  Download,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
