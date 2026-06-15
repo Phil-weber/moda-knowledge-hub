@@ -82,9 +82,16 @@ function ModulePage() {
         <div className="bg-white" style={{ borderBottom: "0.5px solid #E8E8E8", padding: "20px 22px 0" }}>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-[20px]" style={{ fontWeight: 500, color: "#111" }}>
-                {mod?.name ?? slug}
-              </h1>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "2px" }}>
+                <img
+                  src="/logo.png"
+                  alt=""
+                  style={{ width: "22px", height: "22px", objectFit: "contain", filter: "invert(1)" }}
+                />
+                <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", margin: 0 }}>
+                  {mod?.name ?? slug}
+                </h1>
+              </div>
               <div className="mt-1 text-[12px]" style={{ color: "#AAA" }}>
                 {all.length} arquivos
               </div>
