@@ -1,6 +1,7 @@
 // Modal universal de visualização de arquivos (PDF, vídeo, PPT, DOC).
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X, Download, ExternalLink } from "lucide-react";
+import mammoth from "mammoth";
 import type { Doc } from "@/lib/docs-context";
 
 interface FileViewerModalProps {
