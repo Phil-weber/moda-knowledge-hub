@@ -201,12 +201,11 @@ export function AppSidebar() {
       {/* BOTÃO COLLAPSE */}
       <button
         onClick={() => setCollapsed((v) => !v)}
-        title={collapsed ? "Expandir menu" : "Recolher menu"}
+        title={collapsed ? "Expandir" : "Recolher"}
         style={{
           position: "absolute",
-          top: "50%",
+          top: "60px",
           right: "-11px",
-          transform: "translateY(-50%)",
           width: "22px",
           height: "22px",
           borderRadius: "50%",
@@ -216,9 +215,8 @@ export function AppSidebar() {
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          zIndex: 50,
+          zIndex: 100,
           color: "#888888",
-          flexShrink: 0,
         }}
       >
         {collapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
