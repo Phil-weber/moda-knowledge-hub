@@ -68,6 +68,15 @@ const ICON_MAP: Record<string, LucideIcon> = {
   shield: ShieldCheck,
   chart: BarChart2,
   bot: Bot,
+  file: FileText,
+  folder: Inbox,
+  help: HelpCircle,
+  upload: Upload,
+  eye: Eye,
+  check: Check,
+  video: Video,
+  slides: Presentation,
+  download: Download,
 };
 
 // aliases p/ ícones legados vindos do banco
@@ -94,8 +103,6 @@ function normalizeIcon(key: string): string {
 function getIcon(key: string): LucideIcon {
   return ICON_MAP[normalizeIcon(key)] ?? Package;
 }
-
-const ICON_OPTIONS = Object.keys(ICON_MAP) as Array<keyof typeof ICON_MAP>;
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
