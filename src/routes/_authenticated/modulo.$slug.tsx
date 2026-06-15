@@ -728,10 +728,17 @@ function FAQView() {
           flexShrink: 0,
         }}
       >
-        <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", marginBottom: "2px" }}>
-          FAQ — IA
-        </h1>
-        <p style={{ fontSize: "12px", color: "#aaa", marginBottom: "14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "2px" }}>
+          <img
+            src="/logo.png"
+            alt=""
+            style={{ width: "22px", height: "22px", objectFit: "contain", filter: "invert(1)" }}
+          />
+          <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", margin: 0 }}>
+            FAQ — IA
+          </h1>
+        </div>
+        <p style={{ fontSize: "12px", color: "#aaa", marginBottom: "14px", marginTop: "4px" }}>
           Documentação oficial e assistente inteligente
         </p>
         <div style={{ display: "flex", gap: "0" }}>
