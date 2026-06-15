@@ -154,7 +154,7 @@ export function AppSidebar() {
         display: "flex",
         flexDirection: "column",
         transition: "width 0.2s ease",
-        overflow: "hidden",
+        overflow: "visible",
         position: "relative",
       }}
     >
