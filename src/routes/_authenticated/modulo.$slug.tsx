@@ -82,9 +82,16 @@ function ModulePage() {
         <div className="bg-white" style={{ borderBottom: "0.5px solid #E8E8E8", padding: "20px 22px 0" }}>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-[20px]" style={{ fontWeight: 500, color: "#111" }}>
-                {mod?.name ?? slug}
-              </h1>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "2px" }}>
+                <img
+                  src="/logo.png"
+                  alt=""
+                  style={{ width: "22px", height: "22px", objectFit: "contain", filter: "invert(1)" }}
+                />
+                <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", margin: 0 }}>
+                  {mod?.name ?? slug}
+                </h1>
+              </div>
               <div className="mt-1 text-[12px]" style={{ color: "#AAA" }}>
                 {all.length} arquivos
               </div>
@@ -721,10 +728,17 @@ function FAQView() {
           flexShrink: 0,
         }}
       >
-        <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", marginBottom: "2px" }}>
-          FAQ — IA
-        </h1>
-        <p style={{ fontSize: "12px", color: "#aaa", marginBottom: "14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "2px" }}>
+          <img
+            src="/logo.png"
+            alt=""
+            style={{ width: "22px", height: "22px", objectFit: "contain", filter: "invert(1)" }}
+          />
+          <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", margin: 0 }}>
+            FAQ — IA
+          </h1>
+        </div>
+        <p style={{ fontSize: "12px", color: "#aaa", marginBottom: "14px", marginTop: "4px" }}>
           Documentação oficial e assistente inteligente
         </p>
         <div style={{ display: "flex", gap: "0" }}>
@@ -817,15 +831,21 @@ function FAQView() {
 
 function ChatbotSection() {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: "user" | "bot"; text: string }>>([]);
+  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([
+    {
+      role: "assistant",
+      content:
+        "Olá! Sou o assistente PLM. Posso ajudar com dúvidas sobre processos, módulos e documentação interna.",
+    },
+  ]);
 
   const send = () => {
     const text = input.trim();
     if (!text) return;
     setMessages((m) => [
       ...m,
-      { role: "user", text },
-      { role: "bot", text: "Conectando ao Dify.ai…" },
+      { role: "user", content: text },
+      { role: "assistant", content: "Conectando ao Dify.ai…" },
     ]);
     setInput("");
   };
@@ -865,33 +885,77 @@ function ChatbotSection() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 28px", background: "#fafafa" }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "20px 28px",
+          background: "#ffffff",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+        }}
+      >
         {messages.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#bbb", marginTop: 60, fontSize: 13 }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#bbb",
+              fontSize: "13px",
+            }}
+          >
             Faça uma pergunta sobre o sistema PLM.
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {messages.map((m, i) => (
+          messages.map((m, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                gap: "10px",
+                flexDirection: m.role === "user" ? "row-reverse" : "row",
+                alignItems: "flex-start",
+              }}
+            >
+              {m.role === "assistant" && (
+                <div
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    background: "#111",
+                    color: "#fff",
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "14px",
+                  }}
+                >
+                  🤖
+                </div>
+              )}
               <div
-                key={i}
                 style={{
-                  alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                  maxWidth: "70%",
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "0.5px solid #e8e8e8",
-                  background: m.role === "user" ? "#111" : "#fff",
+                  maxWidth: "72%",
+                  padding: "10px 14px",
+                  background: m.role === "user" ? "#111" : "#f5f5f5",
                   color: m.role === "user" ? "#fff" : "#111",
-                  fontSize: 13,
+                  borderRadius: "12px",
+                  fontSize: "13px",
+                  lineHeight: 1.55,
                 }}
               >
-                {m.text}
+                {m.content}
               </div>
-            ))}
-          </div>
+            </div>
+          ))
         )}
       </div>
+
 
       <div
         style={{

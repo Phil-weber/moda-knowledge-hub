@@ -1,6 +1,7 @@
 // Modal universal de visualização de arquivos (PDF, vídeo, PPT, DOC).
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { X, Download, ExternalLink } from "lucide-react";
+import mammoth from "mammoth";
 import type { Doc } from "@/lib/docs-context";
 
 interface FileViewerModalProps {
@@ -102,7 +103,67 @@ function ViewerBody({ doc }: { doc: Doc }) {
         style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }}
       />
     );
+  if (doc.type === "doc") return <DocxViewer doc={doc} />;
   return <OfficeViewer doc={doc} />;
+}
+
+function DocxViewer({ doc }: { doc: Doc }) {
+  const [html, setHtml] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch(doc.file_url);
+        const buf = await res.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer: buf });
+        if (!cancelled) setHtml(result.value);
+      } catch {
+        if (!cancelled) setHtml("<p style='color:#bbb'>Erro ao carregar documento.</p>");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [doc]);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          color: "#bbb",
+          fontSize: "13px",
+        }}
+      >
+        Carregando documento...
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height: "100%", overflowY: "auto", background: "#fff" }}>
+      <div
+        style={{
+          padding: "40px 60px",
+          maxWidth: "800px",
+          margin: "0 auto",
+          background: "#fff",
+          fontSize: "14px",
+          lineHeight: 1.7,
+          color: "#333",
+        }}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+    </div>
+  );
 }
 
 function PdfViewer({ url, data }: { url: string; data?: string }) {
