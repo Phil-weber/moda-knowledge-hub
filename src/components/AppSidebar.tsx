@@ -129,11 +129,11 @@ export function AppSidebar() {
       if (prev.length > 0) return prev;
       return dbModules.map((m) => ({
         id: m.id,
-        slug: m.slug,
-        label: m.name,
+        slug: m.slug ?? m.id,
+        label: m.name ?? "",
         icon: normalizeIcon(m.icon),
         isAI: m.slug === "faq-ia",
-        fixed: FIXED_SLUGS.has(m.slug),
+        fixed: FIXED_SLUGS.has(m.slug ?? ""),
       }));
     });
   }, [dbModules]);
