@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_authenticated/")({
 
 interface ModuleRow {
   id: string;
-  name: string;
-  slug: string;
+  name: string | null;
+  slug: string | null;
   icon: string;
 }
 
