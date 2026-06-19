@@ -14,32 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
-      modules: {
+      files: {
         Row: {
           created_at: string
-          icon: string
+          file_name: string | null
+          file_size: number | null
           id: string
-          name: string
-          order_index: number
-          slug: string
+          module_id: string | null
+          storage_path: string
+          title: string
+          type: string
+          uploaded_by: string | null
         }
         Insert: {
           created_at?: string
-          icon: string
+          file_name?: string | null
+          file_size?: number | null
           id?: string
-          name: string
-          order_index?: number
-          slug: string
+          module_id?: string | null
+          storage_path: string
+          title: string
+          type: string
+          uploaded_by?: string | null
         }
         Update: {
           created_at?: string
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          module_id?: string | null
+          storage_path?: string
+          title?: string
+          type?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modules: {
+        Row: {
+          created_at: string
+          fixed: boolean
+          icon: string
+          id: string
+          is_ai: boolean
+          label: string | null
+          name: string | null
+          order_index: number
+          slug: string | null
+        }
+        Insert: {
+          created_at?: string
+          fixed?: boolean
+          icon: string
+          id?: string
+          is_ai?: boolean
+          label?: string | null
+          name?: string | null
+          order_index?: number
+          slug?: string | null
+        }
+        Update: {
+          created_at?: string
+          fixed?: boolean
           icon?: string
           id?: string
-          name?: string
+          is_ai?: boolean
+          label?: string | null
+          name?: string | null
           order_index?: number
-          slug?: string
+          slug?: string | null
         }
         Relationships: []
+      }
+      onboarding_trails: {
+        Row: {
+          file_order: Json
+          id: string
+          module_id: string
+          updated_at: string
+        }
+        Insert: {
+          file_order?: Json
+          id?: string
+          module_id: string
+          updated_at?: string
+        }
+        Update: {
+          file_order?: Json
+          id?: string
+          module_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_trails_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: true
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
