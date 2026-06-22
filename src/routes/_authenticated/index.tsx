@@ -13,11 +13,30 @@ interface ModuleRow {
   name: string | null;
   slug: string | null;
   icon: string;
+  is_ai?: boolean | null;
 }
+
+const ICON_ALIAS: Record<string, string> = {
+  box: "Package",
+  truck: "Truck",
+  calendar: "Calendar",
+  scissors: "Scissors",
+  color: "Palette",
+  settings: "Settings2",
+  shield: "ShieldCheck",
+  chart: "BarChart2",
+  bot: "Bot",
+  file: "FileText",
+  folder: "Inbox",
+  help: "HelpCircle",
+  video: "Video",
+  slides: "Presentation",
+};
 
 function ModuleIcon({ name, className }: { name: string; className?: string }) {
   const Lib = Icons as unknown as Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>>;
-  const Cmp = Lib[name] ?? Icons.Square;
+  const resolved = ICON_ALIAS[name] ?? name;
+  const Cmp = Lib[resolved] ?? Lib[name] ?? Icons.Square;
   return <Cmp className={className} strokeWidth={1.25} />;
 }
 
@@ -27,7 +46,7 @@ function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("modules")
-        .select("id, name, slug, icon, order_index")
+        .select("id, name, slug, icon, order_index, is_ai")
         .order("order_index", { ascending: true });
       if (error) throw error;
       return data ?? [];
@@ -52,12 +71,12 @@ function DashboardPage() {
       ) : (
         <div className="grid grid-cols-3 gap-4">
           {modules.map((m) => {
-            const isFaq = m.slug === "faq-ia";
+            const isAI = !!m.is_ai || m.slug === "faq-ia";
             return (
               <Link
                 key={m.id}
                 to="/modulo/$slug"
-                params={{ slug: m.slug }}
+                params={{ slug: m.slug ?? m.id }}
                 className="group flex flex-col gap-4 rounded-xl bg-white p-5 transition-colors duration-150"
                 style={{ border: "0.5px solid var(--line)" }}
                 onMouseEnter={(e) => {
