@@ -1,10 +1,9 @@
-// Sidebar do PLM Knowledge Hub com collapse, gerenciamento de módulos
-// e logo FARM. Módulos são carregados do banco e mantidos em estado local
-// para permitir adição/remoção via modal "Gerenciar módulos".
-import { useEffect, useState } from "react";
+// Sidebar do PLM Knowledge Hub.
+// Módulos vindos do banco (React Query). Admin pode adicionar/remover.
+import { useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Package,
   Truck,
@@ -47,6 +46,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import * as modulesService from "@/services/modulesService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ModuleItem {
   id: string;
@@ -55,7 +56,6 @@ interface ModuleItem {
   icon: string;
   isAI?: boolean;
   fixed?: boolean;
-  emoji?: string | null;
 }
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -79,7 +79,6 @@ const ICON_MAP: Record<string, LucideIcon> = {
   download: Download,
 };
 
-// aliases p/ ícones legados vindos do banco
 const ICON_ALIAS: Record<string, string> = {
   Package: "box",
   Truck: "truck",
@@ -107,36 +106,53 @@ function getIcon(key: string): LucideIcon {
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { isAdmin } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [modules, setModules] = useState<ModuleItem[]>([]);
   const [showManageModules, setShowManageModules] = useState(false);
 
-  const { data: dbModules } = useQuery({
+  const { data: dbModules = [] } = useQuery({
     queryKey: ["modules"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("modules")
-        .select("id, name, slug, icon, order_index")
-        .order("order_index", { ascending: true });
+      const { data, error } = await modulesService.getModules();
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  useEffect(() => {
-    if (!dbModules) return;
-    setModules((prev) => {
-      if (prev.length > 0) return prev;
-      return dbModules.map((m) => ({
-        id: m.id,
-        slug: m.slug ?? m.id,
-        label: m.name ?? "",
-        icon: normalizeIcon(m.icon),
-        isAI: m.slug === "faq-ia",
-        fixed: FIXED_SLUGS.has(m.slug ?? ""),
-      }));
-    });
-  }, [dbModules]);
+  const modules: ModuleItem[] = dbModules.map((m: any) => ({
+    id: m.id,
+    slug: m.slug ?? m.id,
+    label: m.name ?? m.label ?? "",
+    icon: normalizeIcon(m.icon),
+    isAI: !!m.is_ai || m.slug === "faq-ia",
+    fixed: !!m.fixed || FIXED_SLUGS.has(m.slug ?? ""),
+  }));
+
+  const addMut = useMutation({
+    mutationFn: async (payload: { label: string; icon: string }) => {
+      const { data, error } = await modulesService.addModule(payload);
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Módulo adicionado");
+      qc.invalidateQueries({ queryKey: ["modules"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao adicionar"),
+  });
+
+  const delMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await modulesService.deleteModule(id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Módulo removido");
+      qc.invalidateQueries({ queryKey: ["modules"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao remover"),
+  });
 
   const onSelect = (slug: string) => {
     navigate({ to: "/modulo/$slug", params: { slug } });
@@ -158,7 +174,6 @@ export function AppSidebar() {
         position: "relative",
       }}
     >
-      {/* LOGO */}
       <div
         style={{
           padding: collapsed ? "16px 0 12px" : "20px 16px 14px",
@@ -198,7 +213,6 @@ export function AppSidebar() {
         )}
       </div>
 
-      {/* BOTÃO COLLAPSE */}
       <button
         onClick={() => setCollapsed((v) => !v)}
         title={collapsed ? "Expandir" : "Recolher"}
@@ -222,7 +236,6 @@ export function AppSidebar() {
         {collapsed ? <ChevronRight size={11} /> : <ChevronLeft size={11} />}
       </button>
 
-      {/* NAV */}
       <nav
         style={{
           flex: 1,
@@ -284,13 +297,7 @@ export function AppSidebar() {
                 if (!isActive) e.currentTarget.style.background = "transparent";
               }}
             >
-              {m.emoji ? (
-                <span style={{ fontSize: 15, lineHeight: 1, width: 15, textAlign: "center" }}>
-                  {m.emoji}
-                </span>
-              ) : (
-                <MI size={15} strokeWidth={1.5} />
-              )}
+              <MI size={15} strokeWidth={1.5} />
               {!collapsed && (
                 <>
                   <span style={{ flex: 1 }}>{m.label}</span>
@@ -316,8 +323,7 @@ export function AppSidebar() {
         })}
       </nav>
 
-      {/* BOTÃO GERENCIAR MÓDULOS */}
-      {!collapsed && (
+      {!collapsed && isAdmin && (
         <div style={{ padding: "0 14px 10px" }}>
           <button
             onClick={() => setShowManageModules(true)}
@@ -342,14 +348,8 @@ export function AppSidebar() {
         </div>
       )}
 
-      {/* FOOTER */}
       {!collapsed && (
-        <div
-          style={{
-            padding: "10px 16px 14px",
-            borderTop: "0.5px solid #eeeeee",
-          }}
-        >
+        <div style={{ padding: "10px 16px 14px", borderTop: "0.5px solid #eeeeee" }}>
           <p style={{ fontSize: "11px", color: "#cccccc", lineHeight: 1.75 }}>
             Suporte:
             <br />
@@ -360,8 +360,7 @@ export function AppSidebar() {
         </div>
       )}
 
-      {/* MODAL GERENCIAR MÓDULOS */}
-      {showManageModules && (
+      {showManageModules && isAdmin && (
         <div
           onClick={() => setShowManageModules(false)}
           style={{
@@ -428,24 +427,16 @@ export function AppSidebar() {
               }}
             >
               <p style={{ fontSize: "11px", color: "#bbbbbb", marginBottom: "4px" }}>
-                Arraste para reordenar. Módulos fixos não podem ser removidos.
+                Módulos fixos não podem ser removidos.
               </p>
-              <SortableModuleList
+              <ModuleList
                 modules={modules}
-                onReorder={setModules}
-                onRemove={(id) =>
-                  setModules((prev) => prev.filter((x) => x.id !== id))
-                }
+                onRemove={(id) => delMut.mutate(id)}
+                removing={delMut.isPending}
               />
             </div>
 
-
-            <div
-              style={{
-                padding: "14px 16px",
-                borderTop: "0.5px solid #e8e8e8",
-              }}
-            >
+            <div style={{ padding: "14px 16px", borderTop: "0.5px solid #e8e8e8" }}>
               <p
                 style={{
                   fontSize: "11px",
@@ -459,7 +450,8 @@ export function AppSidebar() {
                 Adicionar novo módulo
               </p>
               <AddModuleForm
-                onAdd={(newMod) => setModules((prev) => [...prev, newMod])}
+                disabled={addMut.isPending}
+                onAdd={(payload) => addMut.mutate(payload)}
               />
             </div>
           </div>
@@ -482,29 +474,23 @@ const ICON_LIBRARY: Array<{ key: string; Icon: LucideIcon; label: string }> = [
   { key: "file", Icon: FileText, label: "Arquivo" },
   { key: "folder", Icon: Inbox, label: "Pasta" },
   { key: "help", Icon: HelpCircle, label: "Ajuda" },
-  { key: "upload", Icon: Upload, label: "Upload" },
-  { key: "eye", Icon: Eye, label: "Olho" },
-  { key: "check", Icon: Check, label: "Check" },
   { key: "video", Icon: Video, label: "Vídeo" },
   { key: "slides", Icon: Presentation, label: "Slides" },
-  { key: "download", Icon: Download, label: "Download" },
 ];
 
-function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
+function AddModuleForm({
+  onAdd,
+  disabled,
+}: {
+  onAdd: (m: { label: string; icon: string }) => void;
+  disabled?: boolean;
+}) {
   const [label, setLabel] = useState("");
   const [iconKey, setIconKey] = useState<string>("box");
 
   const submit = () => {
-    if (!label.trim()) return;
-    const slug = label.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now();
-    onAdd({
-      id: slug,
-      slug,
-      label: label.trim(),
-      icon: iconKey,
-      fixed: false,
-      emoji: null,
-    });
+    if (!label.trim() || disabled) return;
+    onAdd({ label: label.trim(), icon: iconKey });
     setLabel("");
     setIconKey("box");
   };
@@ -528,11 +514,10 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
           if (e.key === "Enter") submit();
         }}
       />
-
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(9, 1fr)",
+          gridTemplateColumns: "repeat(8, 1fr)",
           gap: "6px",
           marginBottom: "12px",
         }}
@@ -556,7 +541,6 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                transition: "all 0.12s ease",
                 fontFamily: "inherit",
               }}
             >
@@ -565,52 +549,62 @@ function AddModuleForm({ onAdd }: { onAdd: (m: ModuleItem) => void }) {
           );
         })}
       </div>
-
       <button
         onClick={submit}
-        disabled={!label.trim()}
+        disabled={!label.trim() || disabled}
         style={{
           padding: "8px",
           border: "none",
           borderRadius: "7px",
-          background: label.trim() ? "#111111" : "#e8e8e8",
-          color: label.trim() ? "#ffffff" : "#bbbbbb",
+          background: label.trim() && !disabled ? "#111111" : "#e8e8e8",
+          color: label.trim() && !disabled ? "#ffffff" : "#bbbbbb",
           fontSize: "13px",
           fontWeight: 500,
-          cursor: label.trim() ? "pointer" : "not-allowed",
+          cursor: label.trim() && !disabled ? "pointer" : "not-allowed",
           fontFamily: "inherit",
         }}
       >
-        Adicionar
+        {disabled ? "Adicionando…" : "Adicionar"}
       </button>
     </div>
   );
 }
 
-function SortableModuleList({
+function ModuleList({
   modules,
-  onReorder,
   onRemove,
+  removing,
 }: {
   modules: ModuleItem[];
-  onReorder: (next: ModuleItem[]) => void;
   onRemove: (id: string) => void;
+  removing?: boolean;
 }) {
+  const [order, setOrder] = useState<string[]>(modules.map((m) => m.id));
+  const ids = modules.map((m) => m.id);
+  // keep order in sync if modules change
+  const merged =
+    order.length === ids.length && order.every((id) => ids.includes(id))
+      ? order
+      : ids;
+  const list = merged
+    .map((id) => modules.find((m) => m.id === id))
+    .filter((m): m is ModuleItem => !!m);
+
   const sensors = useSensors(useSensor(PointerSensor));
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    const oldIndex = modules.findIndex((m) => m.id === active.id);
-    const newIndex = modules.findIndex((m) => m.id === over.id);
+    const oldIndex = list.findIndex((m) => m.id === active.id);
+    const newIndex = list.findIndex((m) => m.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    onReorder(arrayMove(modules, oldIndex, newIndex));
+    setOrder(arrayMove(list, oldIndex, newIndex).map((m) => m.id));
   };
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={modules.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={list.map((m) => m.id)} strategy={verticalListSortingStrategy}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {modules.map((m) => (
-            <SortableModuleItem key={m.id} mod={m} onRemove={onRemove} />
+          {list.map((m) => (
+            <SortableModuleItem key={m.id} mod={m} onRemove={onRemove} disabled={removing} />
           ))}
         </div>
       </SortableContext>
@@ -621,9 +615,11 @@ function SortableModuleList({
 function SortableModuleItem({
   mod,
   onRemove,
+  disabled,
 }: {
   mod: ModuleItem;
   onRemove: (id: string) => void;
+  disabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: mod.id });
@@ -670,14 +666,11 @@ function SortableModuleItem({
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          fontSize: 16,
         }}
       >
-        {mod.emoji ? mod.emoji : <MI size={14} strokeWidth={1.5} style={{ color: "#666" }} />}
+        <MI size={14} strokeWidth={1.5} style={{ color: "#666" }} />
       </div>
-      <span style={{ flex: 1, fontSize: "13px", fontWeight: 500, color: "#111" }}>
-        {mod.label}
-      </span>
+      <span style={{ flex: 1, fontSize: "13px", fontWeight: 500, color: "#111" }}>{mod.label}</span>
       {mod.isAI && (
         <span
           style={{
@@ -707,7 +700,8 @@ function SortableModuleItem({
         </span>
       ) : (
         <button
-          onClick={() => onRemove(mod.id)}
+          onClick={() => !disabled && onRemove(mod.id)}
+          disabled={disabled}
           style={{
             width: "26px",
             height: "26px",
@@ -717,84 +711,13 @@ function SortableModuleItem({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: "pointer",
+            cursor: disabled ? "wait" : "pointer",
             color: "#cccccc",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "#fca5a5";
-            e.currentTarget.style.color = "#ef4444";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "#e8e8e8";
-            e.currentTarget.style.color = "#cccccc";
           }}
         >
           <Trash2 size={12} strokeWidth={1.5} />
         </button>
       )}
     </div>
-  );
-}
-
-function FarmLogo() {
-  return (
-    <svg
-      width="42"
-      height="42"
-      viewBox="0 0 120 105"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <ellipse cx="60" cy="28" rx="22" ry="28" stroke="#1a1a1a" strokeWidth="3.5" fill="none" />
-      <ellipse
-        cx="88"
-        cy="42"
-        rx="22"
-        ry="28"
-        stroke="#1a1a1a"
-        strokeWidth="3.5"
-        fill="none"
-        transform="rotate(72 88 42)"
-      />
-      <ellipse
-        cx="76"
-        cy="74"
-        rx="22"
-        ry="28"
-        stroke="#1a1a1a"
-        strokeWidth="3.5"
-        fill="none"
-        transform="rotate(144 76 74)"
-      />
-      <ellipse
-        cx="44"
-        cy="74"
-        rx="22"
-        ry="28"
-        stroke="#1a1a1a"
-        strokeWidth="3.5"
-        fill="none"
-        transform="rotate(216 44 74)"
-      />
-      <ellipse
-        cx="32"
-        cy="42"
-        rx="22"
-        ry="28"
-        stroke="#1a1a1a"
-        strokeWidth="3.5"
-        fill="none"
-        transform="rotate(288 32 42)"
-      />
-      <circle cx="60" cy="54" r="15" stroke="#1a1a1a" strokeWidth="3.5" fill="none" />
-      <path
-        d="M10 92 Q35 84 60 90 Q85 96 110 88"
-        stroke="#1a1a1a"
-        strokeWidth="3"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
   );
 }
