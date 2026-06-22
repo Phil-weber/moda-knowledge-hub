@@ -1,12 +1,8 @@
-// Página de login do PLM Knowledge Hub.
-// Recebe "login" + senha, traduz para e-mail interno e chama o Auth.
-// Também garante (idempotente) que os usuários seed existam no backend.
+// Página de login do PLM — auth local.
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useServerFn } from "@tanstack/react-start";
-import { AuthProvider, useAuth } from "@/lib/auth";
-import { ensureSeedUsers } from "@/lib/seed.functions";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/login")({
   component: () => (
@@ -17,43 +13,30 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { signIn, user, loading } = useAuth();
+  const { login, user, loading } = useAuth();
   const navigate = useNavigate();
-  const seed = useServerFn(ensureSeedUsers);
 
-  const [login, setLogin] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Garantir usuários seed (apenas em desenvolvimento — chamada idempotente).
-  useEffect(() => {
-    seed().catch((e) => console.warn("Seed users:", e));
-  }, [seed]);
-
-  // Redirecionar já autenticado.
   useEffect(() => {
     if (!loading && user) navigate({ to: "/" });
   }, [loading, user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    try {
-      await signIn(login, password);
-      navigate({ to: "/" });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Falha ao autenticar.";
-      setError(
-        msg.toLowerCase().includes("invalid")
-          ? "Login ou senha incorretos."
-          : msg,
-      );
-    } finally {
+    const r = login(username, password);
+    if (!r.ok) {
+      setError(r.error ?? "Login inválido.");
       setSubmitting(false);
+      return;
     }
+    navigate({ to: "/" });
   };
 
   return (
@@ -69,29 +52,17 @@ function LoginPage() {
       <form
         onSubmit={handleSubmit}
         className="w-[320px] rounded-[10px] bg-white"
-        style={{
-          padding: "36px 32px",
-          border: "0.5px solid rgba(0,0,0,0.08)",
-        }}
+        style={{ padding: "36px 32px", border: "0.5px solid rgba(0,0,0,0.08)" }}
       >
-        {/* Logo */}
         <div className="mb-5 flex flex-col items-center">
-          <span
-            className="text-[9px] uppercase"
-            style={{ letterSpacing: "0.18em", color: "#888" }}
-          >
+          <span className="text-[9px] uppercase" style={{ letterSpacing: "0.18em", color: "#888" }}>
             Grupo de Moda
           </span>
           <div className="mt-1 flex items-baseline">
             <span style={{ fontSize: 22, fontWeight: 300, color: "var(--ink)" }}>+</span>
             <span
               className="font-serif-soma"
-              style={{
-                fontSize: 26,
-                letterSpacing: "0.12em",
-                color: "var(--ink)",
-                marginLeft: 2,
-              }}
+              style={{ fontSize: 26, letterSpacing: "0.12em", color: "var(--ink)", marginLeft: 2 }}
             >
               soma
             </span>
@@ -104,36 +75,29 @@ function LoginPage() {
           </span>
         </div>
 
-        <h1
-          className="text-center text-[16px]"
-          style={{ fontWeight: 500, color: "var(--ink)" }}
-        >
+        <h1 className="text-center text-[16px]" style={{ fontWeight: 500, color: "var(--ink)" }}>
           Bem-vindo ao PLM Hub
         </h1>
         <p className="mt-1 text-center text-[12px]" style={{ color: "#AAA" }}>
           Insira suas credenciais para acessar
         </p>
 
-        {/* Campos */}
         <div className="mt-6 space-y-3">
           <input
             type="text"
-            value={login}
-            onChange={(e) => setLogin(e.target.value)}
-            placeholder="Login"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="nome.sobrenome"
             autoComplete="username"
             required
-            className="block w-full bg-white px-3 text-[13px] outline-none transition-colors duration-150"
+            className="block w-full bg-white px-3 text-[13px] outline-none"
             style={{
               height: 42,
               borderRadius: 7,
               border: "0.5px solid #D8D8D8",
               color: "var(--ink)",
             }}
-            onFocus={(e) => (e.currentTarget.style.border = "1px solid var(--ink)")}
-            onBlur={(e) => (e.currentTarget.style.border = "0.5px solid #D8D8D8")}
           />
-
           <div className="relative">
             <input
               type={showPwd ? "text" : "password"}
@@ -142,15 +106,13 @@ function LoginPage() {
               placeholder="Senha"
               autoComplete="current-password"
               required
-              className="block w-full bg-white pl-3 pr-10 text-[13px] outline-none transition-colors duration-150"
+              className="block w-full bg-white pl-3 pr-10 text-[13px] outline-none"
               style={{
                 height: 42,
                 borderRadius: 7,
                 border: "0.5px solid #D8D8D8",
                 color: "var(--ink)",
               }}
-              onFocus={(e) => (e.currentTarget.style.border = "1px solid var(--ink)")}
-              onBlur={(e) => (e.currentTarget.style.border = "0.5px solid #D8D8D8")}
             />
             <button
               type="button"
@@ -169,10 +131,7 @@ function LoginPage() {
         </div>
 
         {error && (
-          <p
-            className="mt-3 text-center text-[11px]"
-            style={{ color: "var(--destructive)" }}
-          >
+          <p className="mt-3 text-center text-[11px]" style={{ color: "var(--destructive)" }}>
             {error}
           </p>
         )}
@@ -180,7 +139,7 @@ function LoginPage() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-5 w-full uppercase text-white transition-opacity duration-150 disabled:opacity-60"
+          className="mt-5 w-full uppercase text-white disabled:opacity-60"
           style={{
             height: 42,
             background: "var(--ink)",
@@ -194,7 +153,7 @@ function LoginPage() {
         </button>
 
         <p className="mt-4 text-center text-[11px]" style={{ color: "#CCC" }}>
-          Acesso interno: nome.sobrenome / Fornecedor: supplier.nome
+          Formato: nome.sobrenome
         </p>
       </form>
     </div>

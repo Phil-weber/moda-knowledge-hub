@@ -1,10 +1,7 @@
-// Layout autenticado — guarda de rota.
-// Redireciona para /login se não houver sessão; renderiza topbar + sidebar.
+// Layout autenticado — guarda usando AuthContext local.
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { AuthProvider, useAuth } from "@/lib/auth";
-import { DocsProvider } from "@/lib/docs-context";
-import { TrailsProvider } from "@/lib/trails-context";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppTopbar } from "@/components/AppTopbar";
 
@@ -25,9 +22,7 @@ function Gate() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate({ to: "/login" });
-    }
+    if (!loading && !user) navigate({ to: "/login" });
   }, [loading, user, navigate]);
 
   if (loading || !user) {
@@ -41,18 +36,14 @@ function Gate() {
   }
 
   return (
-    <DocsProvider>
-      <TrailsProvider>
-        <div className="flex min-h-screen w-full" style={{ background: "var(--surface)" }}>
-          <AppSidebar />
-          <div className="flex min-h-screen flex-1 flex-col">
-            <AppTopbar />
-            <main className="flex-1 overflow-auto">
-              <Outlet />
-            </main>
-          </div>
-        </div>
-      </TrailsProvider>
-    </DocsProvider>
+    <div className="flex min-h-screen w-full" style={{ background: "var(--surface)" }}>
+      <AppSidebar />
+      <div className="flex min-h-screen flex-1 flex-col">
+        <AppTopbar />
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
+    </div>
   );
 }
