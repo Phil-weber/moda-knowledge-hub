@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
-export async function getTrail(moduleId) {
+export async function getTrail(moduleId: string) {
   try {
     const { data, error } = await supabase
       .from("onboarding_trails")
@@ -8,13 +8,13 @@ export async function getTrail(moduleId) {
       .eq("module_id", moduleId)
       .maybeSingle();
     if (error) throw error;
-    return { data: data?.file_order ?? [], error: null };
+    return { data: (data?.file_order ?? []) as string[], error: null };
   } catch (error) {
     return { data: null, error };
   }
 }
 
-export async function saveTrail(moduleId, fileOrder) {
+export async function saveTrail(moduleId: string, fileOrder: string[]) {
   try {
     const { data, error } = await supabase
       .from("onboarding_trails")
