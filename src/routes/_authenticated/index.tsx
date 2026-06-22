@@ -95,7 +95,7 @@ function DashboardPage() {
                   >
                     <ModuleIcon name={m.icon} className="h-4 w-4" />
                   </div>
-                  {isFaq && (
+                  {isAI && (
                     <span
                       className="rounded px-1.5 py-0.5 text-[9px] text-white"
                       style={{ background: "var(--ink)", letterSpacing: "0.08em" }}
