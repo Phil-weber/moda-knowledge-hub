@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 const BUCKET = "plm-files";
 
-export async function getFiles(moduleId) {
+export async function getFiles(moduleId: string) {
   try {
     const { data, error } = await supabase
       .from("files")
@@ -16,7 +16,13 @@ export async function getFiles(moduleId) {
   }
 }
 
-export async function uploadFile(moduleId, file, title, type, uploadedBy) {
+export async function uploadFile(
+  moduleId: string,
+  file: File,
+  title: string,
+  type: string,
+  uploadedBy?: string | null,
+) {
   try {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_");
     const storagePath = `${moduleId}/${Date.now()}_${safeName}`;
@@ -45,7 +51,6 @@ export async function uploadFile(moduleId, file, title, type, uploadedBy) {
       .single();
 
     if (error) {
-      // best-effort cleanup if DB insert fails
       await supabase.storage.from(BUCKET).remove([storagePath]);
       throw error;
     }
@@ -55,11 +60,11 @@ export async function uploadFile(moduleId, file, title, type, uploadedBy) {
   }
 }
 
-export async function getFileUrl(storagePath) {
+export async function getFileUrl(storagePath: string) {
   try {
     const { data, error } = await supabase.storage
       .from(BUCKET)
-      .createSignedUrl(storagePath, 60 * 60); // 1h
+      .createSignedUrl(storagePath, 60 * 60);
     if (error) throw error;
     return { data: data.signedUrl, error: null };
   } catch (error) {
@@ -67,7 +72,7 @@ export async function getFileUrl(storagePath) {
   }
 }
 
-export async function deleteFile(id, storagePath) {
+export async function deleteFile(id: string, storagePath: string) {
   try {
     if (storagePath) {
       const { error: storageErr } = await supabase.storage

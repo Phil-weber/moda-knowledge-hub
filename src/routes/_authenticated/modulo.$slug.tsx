@@ -1,7 +1,8 @@
 // Tela de módulo: header + tabs + trilha de onboarding + lista real de arquivos.
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Plus,
@@ -19,13 +20,14 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { FileViewerModal } from "@/components/FileViewerModal";
 import { TrailEditor } from "@/components/TrailEditor";
-import { useDocs, type Doc, type DocType } from "@/lib/docs-context";
-import { useTrails } from "@/lib/trails-context";
+import type { Doc, DocType } from "@/lib/docs-context";
+import { useAuth } from "@/contexts/AuthContext";
+import * as filesService from "@/services/filesService";
+import * as trailService from "@/services/trailService";
 
 export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
 });
-
 
 const TABS = ["Todos", "PDF", "Vídeo", "Apresentação", "Documento"] as const;
 type Tab = (typeof TABS)[number];
@@ -37,27 +39,42 @@ const TAB_TYPE: Record<Exclude<Tab, "Todos">, DocType> = {
   Documento: "doc",
 };
 
+interface FileRow {
+  id: string;
+  module_id: string | null;
+  title: string;
+  type: string;
+  storage_path: string;
+  file_name: string | null;
+  file_size: number | null;
+  created_at: string;
+}
+
+function rowToDoc(r: FileRow, url: string): Doc {
+  return {
+    id: r.id,
+    title: r.title,
+    type: r.type as DocType,
+    file_url: url,
+    file_name: r.file_name ?? r.title,
+    file_size: r.file_size ?? 0,
+    created_at: r.created_at,
+  };
+}
+
 function ModulePage() {
   const { slug } = Route.useParams();
   if (slug === "faq-ia") return <FAQView />;
+  return <RegularModule slug={slug} />;
+}
 
+function RegularModule({ slug }: { slug: string }) {
+  const qc = useQueryClient();
+  const { isAdmin, user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
   const [preview, setPreview] = useState<Doc | null>(null);
   const [showTrailEditor, setShowTrailEditor] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
-
-  const { docs, addDoc, removeDoc } = useDocs();
-  const { trails, setTrail } = useTrails();
-  const all = docs[slug] ?? [];
-  const trailIds = trails[slug] ?? [];
-
-  const trailSteps = trailIds
-    .map((id) => all.find((d) => d.id === id))
-    .filter((d): d is Doc => Boolean(d));
-
-  const completedIds = trailSteps
-    .slice(0, Math.floor(trailSteps.length / 2))
-    .map((d) => d.id);
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
@@ -72,13 +89,130 @@ function ModulePage() {
     },
   });
 
+  const moduleId = mod?.id;
+
+  const { data: filesRaw = [], isLoading: filesLoading } = useQuery({
+    queryKey: ["files", moduleId],
+    enabled: !!moduleId,
+    queryFn: async () => {
+      const { data, error } = await filesService.getFiles(moduleId!);
+      if (error) throw error;
+      return (data ?? []) as FileRow[];
+    },
+  });
+
+  const { data: trailIds = [] } = useQuery({
+    queryKey: ["trail", moduleId],
+    enabled: !!moduleId,
+    queryFn: async () => {
+      const { data, error } = await trailService.getTrail(moduleId!);
+      if (error) throw error;
+      return (data ?? []) as string[];
+    },
+  });
+
+  const docs: Doc[] = useMemo(
+    () =>
+      filesRaw.map((r) => ({
+        id: r.id,
+        title: r.title,
+        type: r.type as DocType,
+        file_url: "",
+        file_name: r.file_name ?? r.title,
+        file_size: r.file_size ?? 0,
+        created_at: r.created_at,
+      })),
+    [filesRaw],
+  );
+
+  const fileById = new Map(filesRaw.map((r) => [r.id, r]));
+
+  const trailSteps = trailIds
+    .map((id) => docs.find((d) => d.id === id))
+    .filter((d): d is Doc => Boolean(d));
+  const completedIds = trailSteps
+    .slice(0, Math.floor(trailSteps.length / 2))
+    .map((d) => d.id);
+
   const filtered =
-    activeTab === "Todos" ? all : all.filter((d) => d.type === TAB_TYPE[activeTab]);
+    activeTab === "Todos" ? docs : docs.filter((d) => d.type === TAB_TYPE[activeTab]);
+
+  const openPreview = async (doc: Doc) => {
+    const row = fileById.get(doc.id);
+    if (!row) return;
+    const { data: url, error } = await filesService.getFileUrl(row.storage_path);
+    if (error || !url) {
+      toast.error("Não foi possível abrir o arquivo");
+      return;
+    }
+    setPreview(rowToDoc(row, url));
+  };
+
+  const downloadDoc = async (doc: Doc) => {
+    const row = fileById.get(doc.id);
+    if (!row) return;
+    const { data: url, error } = await filesService.getFileUrl(row.storage_path);
+    if (error || !url) {
+      toast.error("Erro ao baixar");
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = row.file_name ?? row.title;
+    a.target = "_blank";
+    a.click();
+  };
+
+  const uploadMut = useMutation({
+    mutationFn: async (p: { file: File; title: string; type: DocType }) => {
+      if (!moduleId) throw new Error("Módulo não carregado");
+      const { error } = await filesService.uploadFile(
+        moduleId,
+        p.file,
+        p.title,
+        p.type,
+        user?.username ?? "anon",
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Arquivo adicionado");
+      qc.invalidateQueries({ queryKey: ["files", moduleId] });
+      setShowUpload(false);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha no upload"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      const row = fileById.get(id);
+      if (!row) return;
+      const { error } = await filesService.deleteFile(id, row.storage_path);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Arquivo removido");
+      qc.invalidateQueries({ queryKey: ["files", moduleId] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao remover"),
+  });
+
+  const saveTrailMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!moduleId) return;
+      const { error } = await trailService.saveTrail(moduleId, ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Trilha salva");
+      qc.invalidateQueries({ queryKey: ["trail", moduleId] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar trilha"),
+  });
 
   return (
     <div className="flex h-full min-h-full">
       <div className="flex h-full min-h-full flex-1 flex-col" style={{ background: "#FAFAFA" }}>
-        {/* Header */}
         <div className="bg-white" style={{ borderBottom: "0.5px solid #E8E8E8", padding: "20px 22px 0" }}>
           <div className="flex items-start justify-between">
             <div>
@@ -93,21 +227,23 @@ function ModulePage() {
                 </h1>
               </div>
               <div className="mt-1 text-[12px]" style={{ color: "#AAA" }}>
-                {all.length} arquivos
+                {filesLoading ? "Carregando…" : `${docs.length} arquivos`}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowUpload((v) => !v)}
-              className="flex items-center gap-1.5 px-3 text-[13px] text-white transition-colors duration-150"
-              style={{ background: "#111", height: 30, borderRadius: 7 }}
-            >
-              <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Adicionar
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowUpload((v) => !v)}
+                className="flex items-center gap-1.5 px-3 text-[13px] text-white"
+                style={{ background: "#111", height: 30, borderRadius: 7 }}
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+                Adicionar
+              </button>
+            )}
           </div>
 
-          {all.length > 0 && (
+          {docs.length > 0 && (
             <div className="mt-4 flex gap-6">
               {TABS.map((tab) => {
                 const active = tab === activeTab;
@@ -116,7 +252,7 @@ function ModulePage() {
                     key={tab}
                     type="button"
                     onClick={() => setActiveTab(tab)}
-                    className="pb-2.5 text-[13px] transition-colors duration-150"
+                    className="pb-2.5 text-[13px]"
                     style={{
                       color: active ? "#111" : "#AAA",
                       fontWeight: active ? 500 : 400,
@@ -130,10 +266,9 @@ function ModulePage() {
               })}
             </div>
           )}
-          {all.length === 0 && <div style={{ height: 16 }} />}
+          {docs.length === 0 && <div style={{ height: 16 }} />}
         </div>
 
-        {/* Conteúdo */}
         <div className="flex-1 px-6 py-6">
           {trailSteps.length > 0 && (
             <OnboardingTrack
@@ -141,10 +276,11 @@ function ModulePage() {
               completedIds={completedIds}
               editorOpen={showTrailEditor}
               onToggleEditor={() => setShowTrailEditor((v) => !v)}
+              canEdit={isAdmin}
             />
           )}
 
-          {trailSteps.length === 0 && all.length > 0 && (
+          {trailSteps.length === 0 && docs.length > 0 && isAdmin && (
             <div
               className="bg-white"
               style={{
@@ -176,13 +312,11 @@ function ModulePage() {
             </div>
           )}
 
-          {showUpload && (
+          {showUpload && isAdmin && (
             <div className="mt-4">
               <UploadZone
-                onUpload={(doc) => {
-                  addDoc(slug, doc);
-                  setShowUpload(false);
-                }}
+                loading={uploadMut.isPending}
+                onUpload={(p) => uploadMut.mutate(p)}
               />
             </div>
           )}
@@ -194,7 +328,9 @@ function ModulePage() {
             >
               <Upload size={36} strokeWidth={1.25} style={{ color: "#CCCCCC" }} />
               <p className="mt-3 text-[13px]" style={{ color: "#BBBBBB" }}>
-                Nenhum arquivo ainda. Clique em Adicionar para começar.
+                {isAdmin
+                  ? "Nenhum arquivo ainda. Clique em Adicionar para começar."
+                  : "Nenhum arquivo disponível neste módulo."}
               </p>
             </div>
           ) : (
@@ -203,27 +339,25 @@ function ModulePage() {
                 <DocCard
                   key={d.id}
                   doc={d}
-                  onDelete={(id) => removeDoc(slug, id)}
-                  onPreview={() => setPreview(d)}
+                  canDelete={isAdmin}
+                  onDelete={(id) => deleteMut.mutate(id)}
+                  onPreview={() => openPreview(d)}
+                  onDownload={() => downloadDoc(d)}
                 />
               ))}
             </div>
           )}
         </div>
 
-        <FileViewerModal
-          open={!!preview}
-          onClose={() => setPreview(null)}
-          doc={preview}
-        />
+        <FileViewerModal open={!!preview} onClose={() => setPreview(null)} doc={preview} />
       </div>
 
-      {showTrailEditor && (
+      {showTrailEditor && isAdmin && (
         <TrailEditor
           moduleId={slug}
-          allFiles={all}
+          allFiles={docs}
           trailIds={trailIds}
-          onSave={(ids) => setTrail(slug, ids)}
+          onSave={(ids) => saveTrailMut.mutate(ids)}
           onClose={() => setShowTrailEditor(false)}
         />
       )}
@@ -246,18 +380,6 @@ function formatDate(iso: string): string {
 
 // ---------- UploadZone ----------
 
-const toBase64 = (f: File) =>
-  new Promise<string>((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const result = r.result as string;
-      res(result.split(",")[1] ?? "");
-    };
-    r.onerror = rej;
-    r.readAsDataURL(f);
-  });
-
-
 const DOC_TYPES: Array<{ value: DocType; label: string; accept: string }> = [
   { value: "pdf", label: "PDF", accept: ".pdf" },
   { value: "video", label: "Vídeo", accept: ".mp4,.mov,.avi,.webm" },
@@ -265,12 +387,17 @@ const DOC_TYPES: Array<{ value: DocType; label: string; accept: string }> = [
   { value: "doc", label: "Documento", accept: ".doc,.docx" },
 ];
 
-function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
+function UploadZone({
+  onUpload,
+  loading,
+}: {
+  onUpload: (p: { file: File; title: string; type: DocType }) => void;
+  loading?: boolean;
+}) {
   const [drag, setDrag] = useState(false);
   const [title, setTitle] = useState("");
   const [type, setType] = useState<DocType>("pdf");
   const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
 
   const pick = (f: File | undefined | null) => {
@@ -284,32 +411,13 @@ function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
     else setType("pdf");
   };
 
-  const submit = async () => {
-    if (!file || !title.trim()) return;
-    setLoading(true);
-    const url = URL.createObjectURL(file);
-    let file_data: string | undefined;
-    if (type === "pdf") {
-      file_data = await toBase64(file);
-    }
-    onUpload({
-      id: Date.now().toString(),
-      title: title.trim(),
-      type,
-      file_url: url,
-      file_name: file.name,
-      file_size: file.size,
-      created_at: new Date().toISOString(),
-      file_data,
-    });
-    setTitle("");
-    setFile(null);
-    setType("pdf");
-    setLoading(false);
+  const submit = () => {
+    if (!file || !title.trim() || loading) return;
+    onUpload({ file, title: title.trim(), type });
   };
 
   const sel = DOC_TYPES.find((t) => t.value === type);
-  const ok = !!file && title.trim().length > 0;
+  const ok = !!file && title.trim().length > 0 && !loading;
 
   return (
     <div
@@ -397,7 +505,6 @@ function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
           textAlign: "center",
           cursor: "pointer",
           background: drag ? "#f5f5f5" : "#ffffff",
-          transition: "all 0.15s ease",
           marginBottom: "10px",
         }}
       >
@@ -421,7 +528,7 @@ function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
 
       <button
         onClick={submit}
-        disabled={!ok || loading}
+        disabled={!ok}
         style={{
           width: "100%",
           padding: "10px",
@@ -433,10 +540,9 @@ function UploadZone({ onUpload }: { onUpload: (doc: Doc) => void }) {
           fontWeight: 500,
           cursor: ok ? "pointer" : "not-allowed",
           fontFamily: "inherit",
-          transition: "all 0.15s ease",
         }}
       >
-        {loading ? "Adicionando..." : "Adicionar ao módulo"}
+        {loading ? "Enviando…" : "Adicionar ao módulo"}
       </button>
     </div>
   );
@@ -455,24 +561,16 @@ function DocCard({
   doc,
   onDelete,
   onPreview,
+  onDownload,
+  canDelete,
 }: {
   doc: Doc;
   onDelete: (id: string) => void;
   onPreview: () => void;
+  onDownload: () => void;
+  canDelete: boolean;
 }) {
   const meta = TYPE_META[doc.type] ?? TYPE_META.doc;
-
-  const open = () => {
-    onPreview();
-  };
-
-  const download = () => {
-    const a = document.createElement("a");
-    a.href = doc.file_url;
-    a.download = doc.file_name || doc.title;
-    a.click();
-  };
-
   return (
     <div
       style={{
@@ -483,7 +581,6 @@ function DocCard({
         display: "flex",
         alignItems: "center",
         gap: "14px",
-        transition: "border-color 0.15s ease",
       }}
       onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#999999")}
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e8e8e8")}
@@ -527,35 +624,29 @@ function DocCard({
       </div>
 
       <div style={{ display: "flex", gap: "6px" }}>
-        <button
-          onClick={open}
-          title="Visualizar"
-          style={iconBtn}
-        >
+        <button onClick={onPreview} title="Visualizar" style={iconBtn}>
           <Eye size={13} strokeWidth={1.5} />
         </button>
-        <button
-          onClick={download}
-          title="Download"
-          style={iconBtn}
-        >
+        <button onClick={onDownload} title="Download" style={iconBtn}>
           <Download size={13} strokeWidth={1.5} />
         </button>
-        <button
-          onClick={() => onDelete(doc.id)}
-          title="Remover"
-          style={{ ...iconBtn, color: "#cccccc" }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "#fca5a5";
-            e.currentTarget.style.color = "#ef4444";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "#e0e0e0";
-            e.currentTarget.style.color = "#cccccc";
-          }}
-        >
-          <Trash size={13} strokeWidth={1.5} />
-        </button>
+        {canDelete && (
+          <button
+            onClick={() => onDelete(doc.id)}
+            title="Remover"
+            style={{ ...iconBtn, color: "#cccccc" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#fca5a5";
+              e.currentTarget.style.color = "#ef4444";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#e0e0e0";
+              e.currentTarget.style.color = "#cccccc";
+            }}
+          >
+            <Trash size={13} strokeWidth={1.5} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -581,11 +672,13 @@ function OnboardingTrack({
   completedIds,
   editorOpen,
   onToggleEditor,
+  canEdit,
 }: {
   steps: Doc[];
   completedIds: string[];
   editorOpen: boolean;
   onToggleEditor: () => void;
+  canEdit: boolean;
 }) {
   const total = steps.length;
   const done = completedIds.length;
@@ -597,14 +690,10 @@ function OnboardingTrack({
     ppt: { bg: "#FFF8F0", color: "#F4A460", Icon: Presentation, label: "PPT" },
     doc: { bg: "#F0F6FF", color: "#5BA0D0", Icon: FileIcon, label: "DOC" },
   };
-
-  const activeIndex = done; // próximo passo = ativo
+  const activeIndex = done;
 
   return (
-    <div
-      className="bg-white"
-      style={{ border: "0.5px solid #E8E8E8", borderRadius: 10, padding: "14px 16px" }}
-    >
+    <div className="bg-white" style={{ border: "0.5px solid #E8E8E8", borderRadius: 10, padding: "14px 16px" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <RouteIcon size={14} strokeWidth={1.5} style={{ color: "#111" }} />
@@ -619,21 +708,23 @@ function OnboardingTrack({
           <span className="text-[11px]" style={{ color: "#AAA" }}>
             {done} de {total}
           </span>
-          <button
-            type="button"
-            onClick={onToggleEditor}
-            className="px-2.5 text-[11px] transition-colors duration-150"
-            style={{
-              height: 26,
-              border: editorOpen ? "0.5px solid #111" : "0.5px solid #E0E0E0",
-              borderRadius: 6,
-              color: editorOpen ? "#FFF" : "#555",
-              background: editorOpen ? "#111" : "#FFF",
-              fontWeight: editorOpen ? 500 : 400,
-            }}
-          >
-            {editorOpen ? "Editando" : "Editar trilha"}
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={onToggleEditor}
+              className="px-2.5 text-[11px]"
+              style={{
+                height: 26,
+                border: editorOpen ? "0.5px solid #111" : "0.5px solid #E0E0E0",
+                borderRadius: 6,
+                color: editorOpen ? "#FFF" : "#555",
+                background: editorOpen ? "#111" : "#FFF",
+                fontWeight: editorOpen ? 500 : 400,
+              }}
+            >
+              {editorOpen ? "Editando" : "Editar trilha"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -678,11 +769,7 @@ function OnboardingTrack({
                 )}
               </div>
               <div style={{ padding: "7px 8px" }}>
-                <div
-                  className="truncate text-[11px]"
-                  style={{ fontWeight: 500, color: "#111" }}
-                  title={step.title}
-                >
+                <div className="truncate text-[11px]" style={{ fontWeight: 500, color: "#111" }} title={step.title}>
                   {step.title}
                 </div>
                 <div className="mt-0.5 text-[10px]" style={{ color: "#BBB" }}>
@@ -700,9 +787,99 @@ function OnboardingTrack({
 // ---------- FAQ View ----------
 
 function FAQView() {
+  const qc = useQueryClient();
+  const { isAdmin, user } = useAuth();
   const [tab, setTab] = useState<"docs" | "chat">("docs");
-  const [faqDocs, setFaqDocs] = useState<Doc[]>([]);
   const [showUpload, setShowUpload] = useState(false);
+  const [preview, setPreview] = useState<Doc | null>(null);
+
+  const { data: mod } = useQuery({
+    queryKey: ["module", "faq-ia"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("modules")
+        .select("id, name, slug")
+        .eq("slug", "faq-ia")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const moduleId = mod?.id;
+
+  const { data: filesRaw = [] } = useQuery({
+    queryKey: ["files", moduleId],
+    enabled: !!moduleId,
+    queryFn: async () => {
+      const { data, error } = await filesService.getFiles(moduleId!);
+      if (error) throw error;
+      return (data ?? []) as FileRow[];
+    },
+  });
+
+  const docs: Doc[] = filesRaw.map((r) => ({
+    id: r.id,
+    title: r.title,
+    type: r.type as DocType,
+    file_url: "",
+    file_name: r.file_name ?? r.title,
+    file_size: r.file_size ?? 0,
+    created_at: r.created_at,
+  }));
+  const byId = new Map(filesRaw.map((r) => [r.id, r]));
+
+  const uploadMut = useMutation({
+    mutationFn: async (p: { file: File; title: string; type: DocType }) => {
+      if (!moduleId) throw new Error("Módulo não carregado");
+      const { error } = await filesService.uploadFile(
+        moduleId,
+        p.file,
+        p.title,
+        p.type,
+        user?.username ?? "anon",
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Documento adicionado");
+      qc.invalidateQueries({ queryKey: ["files", moduleId] });
+      setShowUpload(false);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha no upload"),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: async (id: string) => {
+      const row = byId.get(id);
+      if (!row) return;
+      const { error } = await filesService.deleteFile(id, row.storage_path);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Documento removido");
+      qc.invalidateQueries({ queryKey: ["files", moduleId] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao remover"),
+  });
+
+  const openPreview = async (doc: Doc) => {
+    const row = byId.get(doc.id);
+    if (!row) return;
+    const { data: url, error } = await filesService.getFileUrl(row.storage_path);
+    if (error || !url) return toast.error("Erro ao abrir");
+    setPreview(rowToDoc(row, url));
+  };
+
+  const downloadDoc = async (doc: Doc) => {
+    const row = byId.get(doc.id);
+    if (!row) return;
+    const { data: url, error } = await filesService.getFileUrl(row.storage_path);
+    if (error || !url) return toast.error("Erro ao baixar");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = row.file_name ?? row.title;
+    a.click();
+  };
 
   const tabStyle = (t: "docs" | "chat"): React.CSSProperties => ({
     padding: "10px 16px",
@@ -715,7 +892,6 @@ function FAQView() {
     color: tab === t ? "#111" : "#aaa",
     borderBottom: `2px solid ${tab === t ? "#111" : "transparent"}`,
     marginBottom: "-0.5px",
-    transition: "all 0.12s ease",
   });
 
   return (
@@ -734,9 +910,7 @@ function FAQView() {
             alt=""
             style={{ width: "22px", height: "22px", objectFit: "contain", filter: "invert(1)" }}
           />
-          <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", margin: 0 }}>
-            FAQ — IA
-          </h1>
+          <h1 style={{ fontSize: "20px", fontWeight: 500, color: "#111", margin: 0 }}>FAQ — IA</h1>
         </div>
         <p style={{ fontSize: "12px", color: "#aaa", marginBottom: "14px", marginTop: "4px" }}>
           Documentação oficial e assistente inteligente
@@ -765,58 +939,66 @@ function FAQView() {
               Faça upload do arquivo de FAQ oficial (PPT, PDF ou Doc). Os usuários poderão
               visualizá-lo ou baixá-lo diretamente aqui.
             </p>
-            <button
-              onClick={() => setShowUpload((v) => !v)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                height: "34px",
-                padding: "0 16px",
-                background: "#111",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                fontSize: "13px",
-                fontWeight: 500,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              + Adicionar
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowUpload((v) => !v)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  height: "34px",
+                  padding: "0 16px",
+                  background: "#111",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                + Adicionar
+              </button>
+            )}
           </div>
 
-          {showUpload && (
+          {showUpload && isAdmin && (
             <UploadZone
-              onUpload={(doc) => {
-                setFaqDocs((p) => [...p, doc]);
-                setShowUpload(false);
-              }}
+              loading={uploadMut.isPending}
+              onUpload={(p) => uploadMut.mutate(p)}
             />
           )}
 
-          {faqDocs.length === 0 && !showUpload ? (
+          {docs.length === 0 && !showUpload ? (
             <div style={{ textAlign: "center", padding: "80px 0", color: "#ccc" }}>
               <div style={{ fontSize: "36px", marginBottom: "12px" }}>📄</div>
               <p style={{ fontSize: "13px", color: "#bbb" }}>
                 Nenhum arquivo ainda.
-                <br />
-                Clique em "Adicionar" para fazer upload do FAQ oficial.
+                {isAdmin && (
+                  <>
+                    <br />
+                    Clique em "Adicionar" para fazer upload do FAQ oficial.
+                  </>
+                )}
               </p>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {faqDocs.map((doc) => (
+              {docs.map((doc) => (
                 <DocCard
                   key={doc.id}
                   doc={doc}
-                  onDelete={(id) => setFaqDocs((p) => p.filter((d) => d.id !== id))}
-                  onPreview={() => {}}
+                  canDelete={isAdmin}
+                  onDelete={(id) => deleteMut.mutate(id)}
+                  onPreview={() => openPreview(doc)}
+                  onDownload={() => downloadDoc(doc)}
                 />
               ))}
             </div>
           )}
+
+          <FileViewerModal open={!!preview} onClose={() => setPreview(null)} doc={preview} />
         </div>
       )}
 
@@ -896,66 +1078,50 @@ function ChatbotSection() {
           gap: "16px",
         }}
       >
-        {messages.length === 0 ? (
+        {messages.map((m, i) => (
           <div
+            key={i}
             style={{
-              flex: 1,
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#bbb",
-              fontSize: "13px",
+              gap: "10px",
+              flexDirection: m.role === "user" ? "row-reverse" : "row",
+              alignItems: "flex-start",
             }}
           >
-            Faça uma pergunta sobre o sistema PLM.
-          </div>
-        ) : (
-          messages.map((m, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                gap: "10px",
-                flexDirection: m.role === "user" ? "row-reverse" : "row",
-                alignItems: "flex-start",
-              }}
-            >
-              {m.role === "assistant" && (
-                <div
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "50%",
-                    background: "#111",
-                    color: "#fff",
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "14px",
-                  }}
-                >
-                  🤖
-                </div>
-              )}
+            {m.role === "assistant" && (
               <div
                 style={{
-                  maxWidth: "72%",
-                  padding: "10px 14px",
-                  background: m.role === "user" ? "#111" : "#f5f5f5",
-                  color: m.role === "user" ? "#fff" : "#111",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  lineHeight: 1.55,
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  background: "#111",
+                  color: "#fff",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "14px",
                 }}
               >
-                {m.content}
+                🤖
               </div>
+            )}
+            <div
+              style={{
+                maxWidth: "72%",
+                padding: "10px 14px",
+                background: m.role === "user" ? "#111" : "#f5f5f5",
+                color: m.role === "user" ? "#fff" : "#111",
+                borderRadius: "12px",
+                fontSize: "13px",
+                lineHeight: 1.55,
+              }}
+            >
+              {m.content}
             </div>
-          ))
-        )}
+          </div>
+        ))}
       </div>
-
 
       <div
         style={{

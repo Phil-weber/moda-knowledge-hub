@@ -13,7 +13,7 @@ export async function getModules() {
   }
 }
 
-export async function addModule({ label, icon = "box" }) {
+export async function addModule({ label, icon = "box" }: { label: string; icon?: string }) {
   try {
     const { data: existing } = await supabase
       .from("modules")
@@ -46,7 +46,7 @@ export async function addModule({ label, icon = "box" }) {
   }
 }
 
-export async function deleteModule(id) {
+export async function deleteModule(id: string) {
   try {
     const { error } = await supabase.from("modules").delete().eq("id", id);
     if (error) throw error;
@@ -56,7 +56,7 @@ export async function deleteModule(id) {
   }
 }
 
-export async function reorderModules(orderedIds) {
+export async function reorderModules(orderedIds: string[]) {
   try {
     const updates = await Promise.all(
       orderedIds.map((id, idx) =>
