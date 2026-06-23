@@ -14,39 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      file_tags: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          label: string
+          module_id: string | null
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          id?: string
+          label: string
+          module_id?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          label?: string
+          module_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_tags_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       files: {
         Row: {
+          cover_path: string | null
           created_at: string
+          description: string | null
           file_name: string | null
           file_size: number | null
           id: string
           module_id: string | null
           storage_path: string
+          tag: string | null
+          tag_color: string | null
           title: string
           type: string
           uploaded_by: string | null
+          view_count: number | null
         }
         Insert: {
+          cover_path?: string | null
           created_at?: string
+          description?: string | null
           file_name?: string | null
           file_size?: number | null
           id?: string
           module_id?: string | null
           storage_path: string
+          tag?: string | null
+          tag_color?: string | null
           title: string
           type: string
           uploaded_by?: string | null
+          view_count?: number | null
         }
         Update: {
+          cover_path?: string | null
           created_at?: string
+          description?: string | null
           file_name?: string | null
           file_size?: number | null
           id?: string
           module_id?: string | null
           storage_path?: string
+          tag?: string | null
+          tag_color?: string | null
           title?: string
           type?: string
           uploaded_by?: string | null
+          view_count?: number | null
         }
         Relationships: [
           {
