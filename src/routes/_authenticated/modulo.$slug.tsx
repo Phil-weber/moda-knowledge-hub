@@ -128,19 +128,8 @@ function RegularModule({ slug }: { slug: string }) {
     },
   });
 
-  const docs: Doc[] = useMemo(
-    () =>
-      filesRaw.map((r) => ({
-        id: r.id,
-        title: r.title,
-        type: r.type as DocType,
-        file_url: "",
-        file_name: r.file_name ?? r.title,
-        file_size: r.file_size ?? 0,
-        created_at: r.created_at,
-      })),
-    [filesRaw],
-  );
+  const docs: Doc[] = useMemo(() => filesRaw.map(rowToDocBase), [filesRaw]);
+
 
   const fileById = new Map(filesRaw.map((r) => [r.id, r]));
 
