@@ -89,9 +89,11 @@ function RegularModule({ slug }: { slug: string }) {
   const qc = useQueryClient();
   const { isAdmin, user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("Todos");
+  const [view, setView] = useState<"mural" | "list" | "onboarding">("mural");
   const [preview, setPreview] = useState<Doc | null>(null);
   const [showTrailEditor, setShowTrailEditor] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+
 
   const { data: mod } = useQuery({
     queryKey: ["module", slug],
