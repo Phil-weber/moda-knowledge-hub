@@ -24,6 +24,8 @@ import type { Doc, DocType } from "@/lib/docs-context";
 import { useAuth } from "@/contexts/AuthContext";
 import * as filesService from "@/services/filesService";
 import * as trailService from "@/services/trailService";
+import * as tagsService from "@/services/tagsService";
+
 
 export const Route = createFileRoute("/_authenticated/modulo/$slug")({
   component: ModulePage,
