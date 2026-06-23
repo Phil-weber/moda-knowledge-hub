@@ -295,61 +295,66 @@ function RegularModule({ slug }: { slug: string }) {
           {docs.length === 0 && <div style={{ height: 16 }} />}
         </div>
 
-        <div className="flex-1 px-6 py-6">
-          {trailSteps.length > 0 && (
-            <OnboardingTrack
-              steps={trailSteps}
-              completedIds={completedIds}
-              editorOpen={showTrailEditor}
-              onToggleEditor={() => setShowTrailEditor((v) => !v)}
-              canEdit={isAdmin}
-            />
-          )}
-
-          {trailSteps.length === 0 && docs.length > 0 && isAdmin && (
-            <div
-              className="bg-white"
-              style={{
-                border: "0.5px dashed #E0E0E0",
-                borderRadius: 10,
-                padding: "12px 16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span className="text-[12px]" style={{ color: "#AAA" }}>
-                Nenhuma trilha de onboarding configurada.
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowTrailEditor(true)}
-                className="px-2.5 text-[11px]"
-                style={{
-                  height: 26,
-                  border: "0.5px solid #E0E0E0",
-                  borderRadius: 6,
-                  color: "#555",
-                  background: "#FFF",
-                }}
-              >
-                Criar trilha
-              </button>
-            </div>
-          )}
-
+        <div className="flex-1 py-6" style={{ overflowY: "auto" }}>
           {showUpload && isAdmin && (
-            <div className="mt-4">
+            <div style={{ padding: "0 22px 16px" }}>
               <UploadZone
+                moduleId={moduleId ?? ""}
                 loading={uploadMut.isPending}
                 onUpload={(p) => uploadMut.mutate(p)}
               />
             </div>
           )}
 
-          {filtered.length === 0 ? (
+          {view === "onboarding" && (
+            <div style={{ padding: "0 22px 22px" }}>
+              {trailSteps.length > 0 ? (
+                <OnboardingTrack
+                  steps={trailSteps}
+                  completedIds={completedIds}
+                  editorOpen={showTrailEditor}
+                  onToggleEditor={() => setShowTrailEditor((v) => !v)}
+                  canEdit={isAdmin}
+                />
+              ) : (
+                <div
+                  className="bg-white"
+                  style={{
+                    border: "0.5px dashed #E0E0E0",
+                    borderRadius: 10,
+                    padding: "20px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span className="text-[12px]" style={{ color: "#AAA" }}>
+                    Nenhuma trilha de onboarding configurada.
+                  </span>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setShowTrailEditor(true)}
+                      className="px-2.5 text-[11px]"
+                      style={{
+                        height: 26,
+                        border: "0.5px solid #E0E0E0",
+                        borderRadius: 6,
+                        color: "#555",
+                        background: "#FFF",
+                      }}
+                    >
+                      Criar trilha
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {view !== "onboarding" && filtered.length === 0 && (
             <div
-              className="mt-4 flex flex-col items-center justify-center"
+              className="flex flex-col items-center justify-center"
               style={{ padding: "60px 20px" }}
             >
               <Upload size={36} strokeWidth={1.25} style={{ color: "#CCCCCC" }} />
@@ -359,24 +364,31 @@ function RegularModule({ slug }: { slug: string }) {
                   : "Nenhum arquivo disponível neste módulo."}
               </p>
             </div>
-          ) : (
-            <div className="mt-4 flex flex-col gap-2">
-              {filtered.map((d) => (
-                <DocCard
-                  key={d.id}
-                  doc={d}
-                  canDelete={isAdmin}
-                  onDelete={(id) => deleteMut.mutate(id)}
-                  onPreview={() => openPreview(d)}
-                  onDownload={() => downloadDoc(d)}
-                />
-              ))}
-            </div>
+          )}
+
+          {view === "mural" && filtered.length > 0 && (
+            <MuralGrid
+              files={filtered}
+              isAdmin={isAdmin}
+              onView={openPreview}
+              onDelete={(id) => deleteMut.mutate(id)}
+            />
+          )}
+
+          {view === "list" && filtered.length > 0 && (
+            <ListView
+              files={filtered}
+              isAdmin={isAdmin}
+              onView={openPreview}
+              onDownload={downloadDoc}
+              onDelete={(id) => deleteMut.mutate(id)}
+            />
           )}
         </div>
 
         <FileViewerModal open={!!preview} onClose={() => setPreview(null)} doc={preview} />
       </div>
+
 
       {showTrailEditor && isAdmin && (
         <TrailEditor
