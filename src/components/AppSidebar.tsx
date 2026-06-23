@@ -185,32 +185,50 @@ export function AppSidebar() {
           flexShrink: 0,
         }}
       >
-        <img
-          src="/logo.png"
-          alt="Logo"
+        <button
+          onClick={() => navigate({ to: "/" })}
+          title="Voltar para início"
+          onFocus={(e) => (e.currentTarget.style.outline = "none")}
           style={{
-            width: collapsed ? "32px" : "44px",
-            height: collapsed ? "32px" : "44px",
-            objectFit: "contain",
-            filter: "invert(1)",
-            transition: "width 0.2s ease",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "6px",
+            width: "100%",
+            outline: "none",
           }}
-        />
-        {!collapsed && (
-          <span
+        >
+          <img
+            src="/logo.png"
+            alt="Início"
             style={{
-              fontSize: "9px",
-              fontWeight: 500,
-              letterSpacing: "0.14em",
-              color: "#aaaaaa",
-              textTransform: "uppercase",
-              textAlign: "center",
-              lineHeight: 1.4,
+              width: collapsed ? "32px" : "44px",
+              height: collapsed ? "32px" : "44px",
+              objectFit: "contain",
+              filter: "invert(1)",
+              transition: "width 0.2s ease",
             }}
-          >
-            PLM Knowledge Hub
-          </span>
-        )}
+          />
+          {!collapsed && (
+            <span
+              style={{
+                fontSize: "9px",
+                fontWeight: 500,
+                letterSpacing: "0.14em",
+                color: "#aaaaaa",
+                textTransform: "uppercase",
+                textAlign: "center",
+                lineHeight: 1.4,
+              }}
+            >
+              PLM Knowledge Hub
+            </span>
+          )}
+        </button>
       </div>
 
       <button
