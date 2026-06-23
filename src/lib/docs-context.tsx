@@ -12,7 +12,13 @@ export interface Doc {
   file_size: number;
   created_at: string;
   file_data?: string;
+  description?: string | null;
+  tag?: string | null;
+  tag_color?: string | null;
+  cover_path?: string | null;
+  view_count?: number | null;
 }
+
 
 export type DocsMap = Record<string, Doc[]>;
 
