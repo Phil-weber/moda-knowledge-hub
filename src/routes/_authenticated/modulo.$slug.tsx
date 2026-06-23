@@ -849,17 +849,28 @@ function FAQView() {
   const byId = new Map(filesRaw.map((r) => [r.id, r]));
 
   const uploadMut = useMutation({
-    mutationFn: async (p: { file: File; title: string; type: DocType }) => {
+    mutationFn: async (p: {
+      file: File;
+      title: string;
+      type: DocType;
+      description?: string;
+      tag?: string;
+      tagColor?: string;
+      coverFile?: File | null;
+    }) => {
       if (!moduleId) throw new Error("Módulo não carregado");
-      const { error } = await filesService.uploadFile(
-        moduleId,
-        p.file,
-        p.title,
-        p.type,
-        user?.username ?? "anon",
-      );
+      const { error } = await filesService.uploadFile(moduleId, p.file, {
+        title: p.title,
+        type: p.type,
+        description: p.description,
+        tag: p.tag,
+        tagColor: p.tagColor,
+        coverFile: p.coverFile,
+        uploadedBy: user?.username ?? "anon",
+      });
       if (error) throw error;
     },
+
     onSuccess: () => {
       toast.success("Documento adicionado");
       qc.invalidateQueries({ queryKey: ["files", moduleId] });
