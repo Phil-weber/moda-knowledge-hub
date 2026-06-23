@@ -425,18 +425,45 @@ const DOC_TYPES: Array<{ value: DocType; label: string; accept: string }> = [
   { value: "doc", label: "Documento", accept: ".doc,.docx" },
 ];
 
+interface UploadPayload {
+  file: File;
+  title: string;
+  type: DocType;
+  description?: string;
+  tag?: string;
+  tagColor?: string;
+  coverFile?: File | null;
+}
+
 function UploadZone({
   onUpload,
   loading,
+  moduleId,
 }: {
-  onUpload: (p: { file: File; title: string; type: DocType }) => void;
+  onUpload: (p: UploadPayload) => void;
   loading?: boolean;
+  moduleId?: string;
 }) {
   const [drag, setDrag] = useState(false);
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [type, setType] = useState<DocType>("pdf");
   const [file, setFile] = useState<File | null>(null);
+  const [tagId, setTagId] = useState<string>("");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
+  const coverRef = useRef<HTMLInputElement>(null);
+
+  const { data: tagsData } = useQuery({
+    queryKey: ["file_tags", moduleId],
+    enabled: !!moduleId,
+    queryFn: async () => {
+      const { data } = await tagsService.getTagsForModule(moduleId!);
+      return data ?? [];
+    },
+  });
+  const tags = tagsData ?? [];
 
   const pick = (f: File | undefined | null) => {
     if (!f) return;
@@ -449,9 +476,26 @@ function UploadZone({
     else setType("pdf");
   };
 
+  const pickCover = (f: File | undefined | null) => {
+    if (!f) return;
+    setCoverFile(f);
+    const reader = new FileReader();
+    reader.onload = (e) => setCoverPreview(e.target?.result as string);
+    reader.readAsDataURL(f);
+  };
+
   const submit = () => {
     if (!file || !title.trim() || loading) return;
-    onUpload({ file, title: title.trim(), type });
+    const selectedTag = tags.find((t) => t.id === tagId);
+    onUpload({
+      file,
+      title: title.trim(),
+      type,
+      description: description.trim() || undefined,
+      tag: selectedTag?.label,
+      tagColor: selectedTag?.color,
+      coverFile,
+    });
   };
 
   const sel = DOC_TYPES.find((t) => t.value === type);
@@ -492,29 +536,12 @@ function UploadZone({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Título do arquivo..."
-          style={{
-            padding: "8px 12px",
-            border: "0.5px solid #e0e0e0",
-            borderRadius: "7px",
-            fontSize: "13px",
-            outline: "none",
-            fontFamily: "inherit",
-            background: "#fff",
-          }}
+          style={inputStyle}
         />
         <select
           value={type}
           onChange={(e) => setType(e.target.value as DocType)}
-          style={{
-            padding: "8px 12px",
-            border: "0.5px solid #e0e0e0",
-            borderRadius: "7px",
-            fontSize: "13px",
-            outline: "none",
-            fontFamily: "inherit",
-            background: "#fff",
-            cursor: "pointer",
-          }}
+          style={{ ...inputStyle, cursor: "pointer" }}
         >
           {DOC_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -522,6 +549,72 @@ function UploadZone({
             </option>
           ))}
         </select>
+      </div>
+
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value.slice(0, 120))}
+        placeholder="Em uma linha, o que esse arquivo entrega..."
+        rows={2}
+        maxLength={120}
+        style={{ ...inputStyle, width: "100%", resize: "none", marginBottom: 10 }}
+      />
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 8,
+          marginBottom: 10,
+        }}
+      >
+        <select
+          value={tagId}
+          onChange={(e) => setTagId(e.target.value)}
+          style={{ ...inputStyle, cursor: "pointer" }}
+        >
+          <option value="">Categoria (opcional)</option>
+          {tags.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            ref={coverRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            style={{ display: "none" }}
+            onChange={(e) => pickCover(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            onClick={() => coverRef.current?.click()}
+            style={{
+              ...inputStyle,
+              cursor: "pointer",
+              flex: 1,
+              textAlign: "left",
+              color: coverFile ? "#111" : "#888",
+            }}
+          >
+            {coverFile ? coverFile.name : "Capa (opcional)"}
+          </button>
+          {coverPreview && (
+            <img
+              src={coverPreview}
+              alt=""
+              style={{
+                width: 60,
+                height: 60,
+                objectFit: "cover",
+                borderRadius: 6,
+                border: "0.5px solid #e0e0e0",
+              }}
+            />
+          )}
+        </div>
       </div>
 
       <div
@@ -585,6 +678,17 @@ function UploadZone({
     </div>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  border: "0.5px solid #e0e0e0",
+  borderRadius: "7px",
+  fontSize: "13px",
+  outline: "none",
+  fontFamily: "inherit",
+  background: "#fff",
+};
+
 
 // ---------- DocCard ----------
 
