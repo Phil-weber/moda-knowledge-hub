@@ -151,6 +151,9 @@ function RegularModule({ slug }: { slug: string }) {
       toast.error("Não foi possível abrir o arquivo");
       return;
     }
+    filesService.incrementViewCount(row.id).then(() => {
+      qc.invalidateQueries({ queryKey: ["files", moduleId] });
+    });
     setPreview(rowToDoc(row, url));
   };
 
@@ -170,15 +173,25 @@ function RegularModule({ slug }: { slug: string }) {
   };
 
   const uploadMut = useMutation({
-    mutationFn: async (p: { file: File; title: string; type: DocType }) => {
+    mutationFn: async (p: {
+      file: File;
+      title: string;
+      type: DocType;
+      description?: string;
+      tag?: string;
+      tagColor?: string;
+      coverFile?: File | null;
+    }) => {
       if (!moduleId) throw new Error("Módulo não carregado");
-      const { error } = await filesService.uploadFile(
-        moduleId,
-        p.file,
-        p.title,
-        p.type,
-        user?.username ?? "anon",
-      );
+      const { error } = await filesService.uploadFile(moduleId, p.file, {
+        title: p.title,
+        type: p.type,
+        description: p.description,
+        tag: p.tag,
+        tagColor: p.tagColor,
+        coverFile: p.coverFile,
+        uploadedBy: user?.username ?? "anon",
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -193,9 +206,10 @@ function RegularModule({ slug }: { slug: string }) {
     mutationFn: async (id: string) => {
       const row = fileById.get(id);
       if (!row) return;
-      const { error } = await filesService.deleteFile(id, row.storage_path);
+      const { error } = await filesService.deleteFile(id, row.storage_path, row.cover_path);
       if (error) throw error;
     },
+
     onSuccess: () => {
       toast.success("Arquivo removido");
       qc.invalidateQueries({ queryKey: ["files", moduleId] });
