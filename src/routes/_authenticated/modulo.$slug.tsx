@@ -50,6 +50,11 @@ interface FileRow {
   file_name: string | null;
   file_size: number | null;
   created_at: string;
+  description?: string | null;
+  tag?: string | null;
+  tag_color?: string | null;
+  cover_path?: string | null;
+  view_count?: number | null;
 }
 
 function rowToDoc(r: FileRow, url: string): Doc {
@@ -61,8 +66,18 @@ function rowToDoc(r: FileRow, url: string): Doc {
     file_name: r.file_name ?? r.title,
     file_size: r.file_size ?? 0,
     created_at: r.created_at,
+    description: r.description,
+    tag: r.tag,
+    tag_color: r.tag_color,
+    cover_path: r.cover_path,
+    view_count: r.view_count,
   };
 }
+
+function rowToDocBase(r: FileRow): Doc {
+  return rowToDoc(r, "");
+}
+
 
 function ModulePage() {
   const { slug } = Route.useParams();
