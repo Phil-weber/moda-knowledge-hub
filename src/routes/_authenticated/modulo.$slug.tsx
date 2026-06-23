@@ -252,18 +252,22 @@ function RegularModule({ slug }: { slug: string }) {
                 {filesLoading ? "Carregando…" : `${docs.length} arquivos`}
               </div>
             </div>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setShowUpload((v) => !v)}
-                className="flex items-center gap-1.5 px-3 text-[13px] text-white"
-                style={{ background: "#111", height: 30, borderRadius: 7 }}
-              >
-                <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Adicionar
-              </button>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <ViewToggle view={view} onChange={setView} />
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setShowUpload((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 text-[13px] text-white"
+                  style={{ background: "#111", height: 30, borderRadius: 7 }}
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  Adicionar
+                </button>
+              )}
+            </div>
           </div>
+
 
           {docs.length > 0 && (
             <div className="mt-4 flex gap-6">
