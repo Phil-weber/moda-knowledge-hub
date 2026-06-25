@@ -310,41 +310,42 @@ function RegularModule({ slug }: { slug: string }) {
             <div style={{ padding: "0 22px 22px" }}>
               {trailSteps.length > 0 ? (
                 <OnboardingTrack
+                  moduleLabel={mod?.name ?? slug}
                   steps={trailSteps}
                   completedIds={completedIds}
-                  editorOpen={showTrailEditor}
-                  onToggleEditor={() => setShowTrailEditor((v) => !v)}
                   canEdit={isAdmin}
+                  onSelectStep={openPreview}
+                  onEdit={() => setShowTrailEditor(true)}
                 />
               ) : (
                 <div
-                  className="bg-white"
+                  className="bg-white flex flex-col items-center justify-center"
                   style={{
                     border: "0.5px dashed #E0E0E0",
                     borderRadius: 10,
-                    padding: "20px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                    padding: "48px 16px",
+                    gap: 12,
                   }}
                 >
-                  <span className="text-[12px]" style={{ color: "#AAA" }}>
-                    Nenhuma trilha de onboarding configurada.
+                  <RouteIcon size={36} strokeWidth={1.25} style={{ color: "#CCC" }} />
+                  <span className="text-[13px]" style={{ color: "#AAA" }}>
+                    Nenhum passo na trilha ainda.
                   </span>
                   {isAdmin && (
                     <button
                       type="button"
                       onClick={() => setShowTrailEditor(true)}
-                      className="px-2.5 text-[11px]"
+                      className="px-3 text-[12px]"
                       style={{
-                        height: 26,
-                        border: "0.5px solid #E0E0E0",
-                        borderRadius: 6,
-                        color: "#555",
-                        background: "#FFF",
+                        height: 30,
+                        border: "0.5px solid #111",
+                        borderRadius: 7,
+                        color: "#FFF",
+                        background: "#111",
+                        fontWeight: 500,
                       }}
                     >
-                      Criar trilha
+                      Configurar trilha
                     </button>
                   )}
                 </div>
@@ -435,6 +436,14 @@ interface UploadPayload {
   coverFile?: File | null;
 }
 
+const TAG_COLORS = [
+  { value: "#1a4bb5", label: "Azul" },
+  { value: "#2e7d32", label: "Verde" },
+  { value: "#9a6c00", label: "Âmbar" },
+  { value: "#ad1457", label: "Rosa" },
+  { value: "#555555", label: "Cinza" },
+];
+
 function UploadZone({
   onUpload,
   loading,
@@ -444,6 +453,7 @@ function UploadZone({
   loading?: boolean;
   moduleId?: string;
 }) {
+  const qc = useQueryClient();
   const [drag, setDrag] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -452,6 +462,9 @@ function UploadZone({
   const [tagId, setTagId] = useState<string>("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [tagMgrOpen, setTagMgrOpen] = useState(false);
+  const [newTagLabel, setNewTagLabel] = useState("");
+  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0].value);
   const ref = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
 
@@ -464,6 +477,27 @@ function UploadZone({
     },
   });
   const tags = tagsData ?? [];
+
+  const addTag = async () => {
+    if (!moduleId || !newTagLabel.trim()) return;
+    const { error } = await tagsService.addTagToModule(moduleId, newTagLabel.trim(), newTagColor);
+    if (error) {
+      toast.error("Falha ao adicionar categoria");
+      return;
+    }
+    setNewTagLabel("");
+    qc.invalidateQueries({ queryKey: ["file_tags", moduleId] });
+  };
+
+  const removeTag = async (id: string) => {
+    const { error } = await tagsService.deleteTag(id);
+    if (error) {
+      toast.error("Falha ao remover categoria");
+      return;
+    }
+    if (tagId === id) setTagId("");
+    qc.invalidateQueries({ queryKey: ["file_tags", moduleId] });
+  };
 
   const pick = (f: File | undefined | null) => {
     if (!f) return;
@@ -482,6 +516,12 @@ function UploadZone({
     const reader = new FileReader();
     reader.onload = (e) => setCoverPreview(e.target?.result as string);
     reader.readAsDataURL(f);
+  };
+
+  const clearCover = () => {
+    setCoverFile(null);
+    setCoverPreview(null);
+    if (coverRef.current) coverRef.current.value = "";
   };
 
   const submit = () => {
@@ -568,18 +608,156 @@ function UploadZone({
           marginBottom: 10,
         }}
       >
-        <select
-          value={tagId}
-          onChange={(e) => setTagId(e.target.value)}
-          style={{ ...inputStyle, cursor: "pointer" }}
-        >
-          <option value="">Categoria (opcional)</option>
-          {tags.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+        <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center" }}>
+          <select
+            value={tagId}
+            onChange={(e) => setTagId(e.target.value)}
+            style={{ ...inputStyle, cursor: "pointer", flex: 1 }}
+          >
+            <option value="">Categoria (opcional)</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setTagMgrOpen((v) => !v)}
+            style={{
+              ...inputStyle,
+              cursor: "pointer",
+              padding: "8px 10px",
+              fontSize: 11,
+              color: "#555",
+              whiteSpace: "nowrap",
+            }}
+          >
+            + Gerenciar
+          </button>
+          {tagMgrOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                left: 0,
+                right: 0,
+                zIndex: 20,
+                background: "#fff",
+                border: "0.5px solid #e0e0e0",
+                borderRadius: 10,
+                padding: 12,
+                minWidth: 280,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 10,
+                  fontWeight: 500,
+                  letterSpacing: "0.08em",
+                  color: "#aaa",
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                }}
+              >
+                Categorias do módulo
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                {tags.length === 0 && (
+                  <span style={{ fontSize: 12, color: "#bbb" }}>Nenhuma ainda.</span>
+                )}
+                {tags.map((t) => (
+                  <div
+                    key={t.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "4px 6px",
+                      border: "0.5px solid #f0f0f0",
+                      borderRadius: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: t.color,
+                      }}
+                    />
+                    <span style={{ fontSize: 12, color: "#333", flex: 1 }}>{t.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeTag(t.id)}
+                      title="Remover"
+                      style={{
+                        width: 20,
+                        height: 20,
+                        border: "0.5px solid #e0e0e0",
+                        borderRadius: 4,
+                        background: "#fff",
+                        cursor: "pointer",
+                        fontSize: 11,
+                        color: "#999",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                <input
+                  value={newTagLabel}
+                  onChange={(e) => setNewTagLabel(e.target.value)}
+                  placeholder="Nova categoria"
+                  style={{ ...inputStyle, flex: 1, fontSize: 12 }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                {TAG_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setNewTagColor(c.value)}
+                    title={c.label}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: c.value,
+                      border:
+                        newTagColor === c.value
+                          ? "2px solid #111"
+                          : "0.5px solid #e0e0e0",
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addTag}
+                disabled={!newTagLabel.trim()}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  border: "none",
+                  borderRadius: 7,
+                  background: newTagLabel.trim() ? "#111" : "#e8e8e8",
+                  color: newTagLabel.trim() ? "#fff" : "#bbb",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: newTagLabel.trim() ? "pointer" : "not-allowed",
+                  fontFamily: "inherit",
+                }}
+              >
+                Adicionar categoria
+              </button>
+            </div>
+          )}
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input
             ref={coverRef}
@@ -588,31 +766,57 @@ function UploadZone({
             style={{ display: "none" }}
             onChange={(e) => pickCover(e.target.files?.[0])}
           />
-          <button
-            type="button"
-            onClick={() => coverRef.current?.click()}
-            style={{
-              ...inputStyle,
-              cursor: "pointer",
-              flex: 1,
-              textAlign: "left",
-              color: coverFile ? "#111" : "#888",
-            }}
-          >
-            {coverFile ? coverFile.name : "Capa (opcional)"}
-          </button>
-          {coverPreview && (
-            <img
-              src={coverPreview}
-              alt=""
+          {!coverPreview ? (
+            <button
+              type="button"
+              onClick={() => coverRef.current?.click()}
               style={{
-                width: 60,
-                height: 60,
-                objectFit: "cover",
-                borderRadius: 6,
-                border: "0.5px solid #e0e0e0",
+                ...inputStyle,
+                cursor: "pointer",
+                flex: 1,
+                textAlign: "left",
+                color: "#888",
               }}
-            />
+            >
+              Capa (opcional)
+            </button>
+          ) : (
+            <div style={{ position: "relative", width: 60, height: 60 }}>
+              <img
+                src={coverPreview}
+                alt=""
+                style={{
+                  width: 60,
+                  height: 60,
+                  objectFit: "cover",
+                  borderRadius: 8,
+                  border: "0.5px solid #e0e0e0",
+                }}
+              />
+              <button
+                type="button"
+                onClick={clearCover}
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -6,
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  background: "#111",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -671,10 +875,28 @@ function UploadZone({
           fontWeight: 500,
           cursor: ok ? "pointer" : "not-allowed",
           fontFamily: "inherit",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
         }}
       >
+        {loading && (
+          <span
+            style={{
+              width: 12,
+              height: 12,
+              border: "1.5px solid rgba(255,255,255,.4)",
+              borderTopColor: "#fff",
+              borderRadius: "50%",
+              display: "inline-block",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+        )}
         {loading ? "Enviando…" : "Adicionar ao módulo"}
       </button>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -810,21 +1032,25 @@ const iconBtn: React.CSSProperties = {
 // ---------- Onboarding ----------
 
 function OnboardingTrack({
+  moduleLabel,
   steps,
   completedIds,
-  editorOpen,
-  onToggleEditor,
   canEdit,
+  onSelectStep,
+  onEdit,
 }: {
+  moduleLabel: string;
   steps: Doc[];
   completedIds: string[];
-  editorOpen: boolean;
-  onToggleEditor: () => void;
   canEdit: boolean;
+  onSelectStep: (doc: Doc) => void;
+  onEdit: () => void;
 }) {
   const total = steps.length;
   const done = completedIds.length;
-  const pct = total ? (done / total) * 100 : 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const activeIndex = done;
+  const nextStep = steps[activeIndex] ?? steps[steps.length - 1];
 
   const TYPE_VISUAL: Record<DocType, { bg: string; color: string; Icon: LucideIcon; label: string }> = {
     pdf: { bg: "#FFF5F5", color: "#E57373", Icon: FileText, label: "PDF" },
@@ -832,95 +1058,250 @@ function OnboardingTrack({
     ppt: { bg: "#FFF8F0", color: "#F4A460", Icon: Presentation, label: "PPT" },
     doc: { bg: "#F0F6FF", color: "#5BA0D0", Icon: FileIcon, label: "DOC" },
   };
-  const activeIndex = done;
 
   return (
-    <div className="bg-white" style={{ border: "0.5px solid #E8E8E8", borderRadius: 10, padding: "14px 16px" }}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <RouteIcon size={14} strokeWidth={1.5} style={{ color: "#111" }} />
-          <span className="text-[13px]" style={{ fontWeight: 500, color: "#111" }}>
-            Trilha de onboarding
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div style={{ width: 80, height: 4, background: "#F0F0F0", borderRadius: 2 }}>
-            <div style={{ width: `${pct}%`, height: "100%", background: "#111", borderRadius: 2 }} />
-          </div>
-          <span className="text-[11px]" style={{ color: "#AAA" }}>
-            {done} de {total}
-          </span>
-          {canEdit && (
-            <button
-              type="button"
-              onClick={onToggleEditor}
-              className="px-2.5 text-[11px]"
+    <div style={{ borderRadius: 12, overflow: "hidden", border: "0.5px solid #e8e8e8" }}>
+      {/* HERO */}
+      <div
+        style={{
+          background: "linear-gradient(135deg, #111 0%, #1f1f1f 60%, #2a2a2a 100%)",
+          padding: "24px 28px",
+          color: "#fff",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            padding: "5px 12px",
+            background: "rgba(255,255,255,0.1)",
+            border: "0.5px solid rgba(255,255,255,0.15)",
+            borderRadius: 20,
+            fontSize: 10,
+            fontWeight: 500,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            marginBottom: 14,
+          }}
+        >
+          🚀 Onboarding
+        </span>
+        <h2 style={{ fontSize: 24, fontWeight: 500, margin: 0, marginBottom: 6 }}>
+          Sua jornada em {moduleLabel}
+        </h2>
+        <p
+          style={{
+            fontSize: 13,
+            color: "rgba(255,255,255,0.6)",
+            maxWidth: 480,
+            margin: 0,
+            marginBottom: 18,
+            lineHeight: 1.5,
+          }}
+        >
+          Siga a trilha abaixo para conhecer os materiais essenciais deste módulo.
+        </p>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ flex: 1, maxWidth: 320 }}>
+            <div
               style={{
-                height: 26,
-                border: editorOpen ? "0.5px solid #111" : "0.5px solid #E0E0E0",
-                borderRadius: 6,
-                color: editorOpen ? "#FFF" : "#555",
-                background: editorOpen ? "#111" : "#FFF",
-                fontWeight: editorOpen ? 500 : 400,
+                height: 6,
+                background: "rgba(255,255,255,0.12)",
+                borderRadius: 3,
+                overflow: "hidden",
+                marginBottom: 6,
               }}
             >
-              {editorOpen ? "Editando" : "Editar trilha"}
+              <div
+                style={{
+                  width: `${pct}%`,
+                  height: "100%",
+                  background: "#fff",
+                  borderRadius: 3,
+                  transition: "width .3s",
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+              {done} de {total} concluídos · {pct}%
+            </span>
+          </div>
+          {nextStep && (
+            <button
+              type="button"
+              onClick={() => onSelectStep(nextStep)}
+              style={{
+                padding: "9px 18px",
+                background: "#fff",
+                color: "#111",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Continuar
             </button>
           )}
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        {steps.map((step, idx) => {
-          const visual = TYPE_VISUAL[step.type] ?? TYPE_VISUAL.doc;
-          const { Icon } = visual;
-          const completed = completedIds.includes(step.id);
-          const isActive = !completed && idx === activeIndex;
-          const opacity = completed || isActive ? 1 : 0.6;
-          const borderColor = completed || isActive ? "#111" : "#E8E8E8";
-
-          return (
-            <div
-              key={step.id}
-              className="shrink-0 overflow-hidden bg-white"
+      {/* STEPS */}
+      <div style={{ background: "#fafafa", padding: "24px 28px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 18,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 500,
+              letterSpacing: "0.14em",
+              color: "#888",
+              textTransform: "uppercase",
+            }}
+          >
+            Próximos passos
+          </span>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
               style={{
-                width: 140,
-                border: `${completed || isActive ? "1px" : "0.5px"} solid ${borderColor}`,
-                borderRadius: 8,
-                opacity,
+                padding: "5px 12px",
+                border: "0.5px solid #e0e0e0",
+                borderRadius: 6,
+                background: "#fff",
+                fontSize: 11,
+                color: "#555",
+                cursor: "pointer",
+                fontFamily: "inherit",
               }}
             >
-              <div
-                className="relative flex items-center justify-center"
-                style={{ height: 70, background: visual.bg }}
-              >
-                <Icon size={24} strokeWidth={1.25} style={{ color: visual.color }} />
-                <div
-                  className="absolute left-1.5 top-1.5 flex items-center justify-center text-[10px] text-white"
-                  style={{ width: 18, height: 18, borderRadius: 999, background: "#111" }}
-                >
-                  {idx + 1}
-                </div>
-                {completed && (
+              Editar trilha
+            </button>
+          )}
+        </div>
+
+        <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 14 }}>
+          {steps.map((step, idx) => {
+            const visual = TYPE_VISUAL[step.type] ?? TYPE_VISUAL.doc;
+            const { Icon } = visual;
+            const completed = completedIds.includes(step.id);
+            const isActive = !completed && idx === activeIndex;
+            const isLast = idx === steps.length - 1;
+
+            return (
+              <div key={step.id} style={{ display: "flex", alignItems: "stretch", gap: 14, position: "relative" }}>
+                {/* Circle + connector */}
+                <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
                   <div
-                    className="absolute right-1.5 top-1.5 flex items-center justify-center text-white"
-                    style={{ width: 16, height: 16, borderRadius: 999, background: "#111" }}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: completed ? "#111" : "#fff",
+                      border: completed
+                        ? "none"
+                        : isActive
+                        ? "3px solid #111"
+                        : "2px solid #e0e0e0",
+                      boxShadow: isActive ? "0 0 0 6px rgba(0,0,0,0.06)" : "none",
+                      color: completed ? "#fff" : "#111",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      flexShrink: 0,
+                      zIndex: 1,
+                    }}
                   >
-                    <Check size={10} strokeWidth={2.5} />
+                    {completed ? <Check size={18} strokeWidth={2.5} /> : idx + 1}
                   </div>
-                )}
-              </div>
-              <div style={{ padding: "7px 8px" }}>
-                <div className="truncate text-[11px]" style={{ fontWeight: 500, color: "#111" }} title={step.title}>
-                  {step.title}
+                  {!isLast && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 48,
+                        bottom: -14,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        width: 2,
+                        background: "linear-gradient(180deg, #111 0%, #e0e0e0 100%)",
+                      }}
+                    />
+                  )}
                 </div>
-                <div className="mt-0.5 text-[10px]" style={{ color: "#BBB" }}>
-                  {visual.label} · {formatSize(step.file_size)}
-                </div>
+
+                {/* Card */}
+                <button
+                  type="button"
+                  onClick={() => onSelectStep(step)}
+                  style={{
+                    flex: 1,
+                    background: "#fff",
+                    border: "0.5px solid #e8e8e8",
+                    borderRadius: 10,
+                    padding: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: "inherit",
+                    transition: "border-color .15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#111")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e8e8e8")}
+                >
+                  <div
+                    style={{
+                      width: 120,
+                      height: 72,
+                      borderRadius: 8,
+                      background: visual.bg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon size={28} strokeWidth={1.25} style={{ color: visual.color }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: "#111",
+                        marginBottom: 4,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {step.title}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#aaa" }}>
+                      <span style={{ color: visual.color, fontWeight: 500 }}>{visual.label}</span>
+                      {step.file_size ? ` · ${formatSize(step.file_size)}` : ""}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 18, color: "#ccc", marginRight: 6 }}>→</span>
+                </button>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
