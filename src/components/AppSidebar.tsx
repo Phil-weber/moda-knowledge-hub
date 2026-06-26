@@ -451,6 +451,17 @@ export function AppSidebar() {
                 modules={modules}
                 onRemove={(id) => delMut.mutate(id)}
                 removing={delMut.isPending}
+                onReorder={async (ordered) => {
+                  const { error } = await modulesService.reorderModules(
+                    ordered.map((m) => m.id),
+                  );
+                  if (error) {
+                    toast.error("Falha ao salvar ordem");
+                  } else {
+                    toast.success("Ordem atualizada", { duration: 2000 });
+                  }
+                  qc.invalidateQueries({ queryKey: ["modules"] });
+                }}
               />
             </div>
 
