@@ -603,29 +603,24 @@ function ModuleList({
   modules,
   onRemove,
   removing,
+  onReorder,
 }: {
   modules: ModuleItem[];
   onRemove: (id: string) => void;
   removing?: boolean;
+  onReorder: (ordered: ModuleItem[]) => void | Promise<void>;
 }) {
-  const [order, setOrder] = useState<string[]>(modules.map((m) => m.id));
-  const ids = modules.map((m) => m.id);
-  // keep order in sync if modules change
-  const merged =
-    order.length === ids.length && order.every((id) => ids.includes(id))
-      ? order
-      : ids;
-  const list = merged
-    .map((id) => modules.find((m) => m.id === id))
-    .filter((m): m is ModuleItem => !!m);
-
-  const sensors = useSensors(useSensor(PointerSensor));
+  const list = modules;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
     const oldIndex = list.findIndex((m) => m.id === active.id);
     const newIndex = list.findIndex((m) => m.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    setOrder(arrayMove(list, oldIndex, newIndex).map((m) => m.id));
+    const next = arrayMove(list, oldIndex, newIndex);
+    void onReorder(next);
   };
 
   return (
