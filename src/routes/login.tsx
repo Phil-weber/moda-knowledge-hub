@@ -3,6 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import loginBg from "@/assets/login-bg.jpg.asset.json";
+
 
 export const Route = createFileRoute("/login")({
   component: () => (
