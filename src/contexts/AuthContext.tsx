@@ -1,6 +1,6 @@
 // Auth local do PLM — sem backend de autenticação.
 // Qualquer "nome.sobrenome" + senha SHARED_PASSWORD entra.
-// O usuário ADMIN_USER tem papel "admin"; demais são "common".
+// Os usuários em ADMIN_USERS têm papel "admin"; demais são "common".
 import {
   createContext,
   useCallback,
@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
-const ADMIN_USER = "philipp.weber";
+const ADMIN_USERS = ["philipp.weber", "bruna.valadares"];
 const SHARED_PASSWORD = "Soma@1206";
 const STORAGE_KEY = "plm_session";
 
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const session: SessionUser = {
       username: u,
-      role: u === ADMIN_USER ? "admin" : "common",
+      role: ADMIN_USERS.includes(u) ? "admin" : "common",
     };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
     setUser(session);
