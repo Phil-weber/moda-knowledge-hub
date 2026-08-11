@@ -43,12 +43,14 @@ function LoginPage() {
     <div
       className="relative flex min-h-screen w-full items-center justify-center"
       style={{
-        background: "#F0ECE6",
-        backgroundImage:
-          "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><g fill='none' stroke='%23DCD4C5' stroke-width='0.6' opacity='0.9'><path d='M40 80c0-22 18-40 40-40s40 18 40 40-18 40-40 40-40-18-40-40z'/><path d='M80 40c12 18 12 62 0 80M40 80c18-12 62-12 80 0M52 52c20 20 36 36 56 56M108 52c-20 20-36 36-56 56'/></g></svg>\")",
-        backgroundRepeat: "repeat",
+        backgroundColor: "#111111",
+        backgroundImage: `url(${loginBg.url})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
+
       <form
         onSubmit={handleSubmit}
         className="w-[320px] rounded-[10px] bg-white"
